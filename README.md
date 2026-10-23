@@ -75,6 +75,17 @@ The included 5-page bilingual PDF papers contain the academic figures and full s
 
 These values come from the **separate benchmark** in `research/experiment.py`, not from `examples/quickstart.py`. KDA uses a deterministic development-calibrated gate, **not** a trained Kimi Linear implementation. SDA uses 25× the nominal state+KV capacity of the proxy. The sharp full-KV softmax comparator is not an equal-memory or trained full Transformer. The observed result **does not prove SDA is superior to KDA** or that the full hybrid is linear-time.
 
+## LoopedSDN + RoPE (PyTorch prototype)
+
+`summer_delta_attention/looped.py` (optional dependency: `pip install -e .[torch]`) adds a weight-shared, recurrent-depth network built from SDA-5 layers with rotary position embeddings. Import it explicitly: `from summer_delta_attention.looped import LoopedSDN`.
+
+- RoPE is applied to `q` and `k` before L2 normalisation, so the archive cosine gate depends on relative position.
+- One block is applied `n_loops` times with shared weights, input re-injection and a learned per-loop embedding; parameters do not grow with `n_loops`, compute does.
+- The delta step is data-dependent (`beta_max * sigmoid(.)`); an optional sigmoid gate (`gate_temperature > 0`) makes the confidence gate trainable.
+- Tests check RoPE properties, causality, equality with the NumPy reference (archive large enough to hold every token), and that gradients flow.
+
+**Limitations:** untrained research code, no language-model results, sequential Python token loop (not a kernel), reservoir decisions shared across batch and heads, and the archive scan is O(B*d_key) per token per loop. No claim is made that it outperforms any baseline.
+
 ## Reproduce prior synthetic study
 
 ```bash

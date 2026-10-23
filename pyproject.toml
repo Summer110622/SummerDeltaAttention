@@ -9,6 +9,9 @@ description = "Research reference for SDA v5-Gated: no-decay delta state with in
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+torch = ["torch>=2.1"]
 authors = [{name = "summer"}]
 license = {text = "MIT"}
 
