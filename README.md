@@ -28,6 +28,31 @@ python -m unittest discover -s tests -v
 
 Python >=3.10 and NumPy >=1.24 are required. The [reference module](summer_delta_attention/reference.py) exposes `SummerDeltaAttention`, `kda_proxy_state` and `full_kv_attention`.
 
+## Experiment figures
+
+### Main comparison: SDA vs KDA
+
+<p align="center">
+  <img src="assets/readme/fig_main_comparison.png" alt="Main comparison chart between SDA and KDA across methods and memory settings" width="900" />
+</p>
+
+**Figure 1.** In the synthetic exact-key recall benchmark, calibrated SDA-5 with a 50% archive reaches **0.4721 ± 0.0099** MSE, compared with **0.9336 ± 0.0098** for the KDA-style recurrent proxy. The README figure highlights the central caveat: SDA improves recall here by using a substantially larger external archive.
+
+### Memory / accuracy Pareto view
+
+<p align="center">
+  <img src="assets/readme/fig_budget_pareto.png" alt="Pareto chart showing memory-accuracy tradeoff for SDA, KDA and baselines" width="980" />
+</p>
+
+**Figure 2.** This plot visualizes the trade-off between value-reconstruction error and total state-plus-storage footprint. KDA and no-decay DeltaNet remain compact (**4 KiB**) but have higher reconstruction error, whereas SDA lowers error by spending additional archive memory.
+
+### Noise and sequence-length scaling
+
+<p align="center">
+  <img src="assets/readme/fig_noise_scaling.png" alt="Noise and sequence-length scaling figure for SDA, KDA and baselines" width="980" />
+</p>
+
+**Figure 3.** The third figure summarizes sensitivity to query noise and scaling with sequence length under the study protocol in `research/experiment.py`. These are controlled synthetic experiments, not downstream language-model evaluations.
 ## Manuscripts / 論文
 
 - [English academic paper (PDF)](papers/Summer_Delta_Attention_vs_KDA_EN.pdf) · [English Markdown](papers/SDA_vs_KDA_EN.md)
