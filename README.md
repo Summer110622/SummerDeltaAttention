@@ -62,6 +62,8 @@ The following PNG plots are included in this repository under [`assets/readme/`]
 - [日本語論文 (PDF)](papers/Summer_Delta_Attention_vs_KDA_JA.pdf) · [日本語Markdown](papers/SDA_vs_KDA_JA.md)
 - [Prior numerical study and reproduction script](research/experiment.py) (NumPy and pandas; its reported results use **16 held-out random seeds**, separate development calibration, and an untrained channel-gated KDA recurrence **proxy**)
 
+- [How it works / 仕組み (docs/wiki)](docs/wiki/Home.md) — bilingual explanation of the mechanism
+
 The included 5-page bilingual PDF papers contain the academic figures and full study; the Markdown versions give GitHub-readable equations, protocol, key measurements, and citations.
 
 ## Synthetic recall results (not a language-model benchmark)
