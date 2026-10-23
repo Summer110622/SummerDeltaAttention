@@ -1,0 +1,35 @@
+name: "Bug report / バグ報告"
+description: "Report a reproducible defect / 再現可能な不具合を報告"
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Read the [Issue policy](../blob/main/.github/ISSUE_POLICY.md) before submitting. / 投稿前にIssueポリシーを確認してください。"
+  - type: textarea
+    id: description
+    attributes:
+      label: "Problem / 問題"
+      description: "Expected and actual behavior / 期待結果と実際の結果"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: "Minimal reproduction / 最小再現手順"
+      description: "Commands, code, input, and seed / コマンド、コード、入力、シード"
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: "Environment / 実行環境"
+      description: "Python, NumPy, OS, commit / Python、NumPy、OS、コミット"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs / ログ"
+      description: "Remove secrets and personal data / 機密・個人情報は削除"
+      render: shell
