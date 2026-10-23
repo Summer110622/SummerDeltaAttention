@@ -9,11 +9,11 @@ description = "Research reference for SDA v5-Gated: no-decay delta state with in
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.24"]
+authors = [{name = "summer"}]
+license = {text = "MIT"}
 
 [project.optional-dependencies]
 research = ["pandas>=2.0", "matplotlib>=3.7"]
-authors = [{name = "summer"}]
-license = {text = "MIT"}
 
 [tool.setuptools.packages.find]
 include = ["summer_delta_attention*"]
