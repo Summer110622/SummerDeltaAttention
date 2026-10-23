@@ -1,0 +1,22 @@
+name: "Research question / 研究上の質問"
+description: "Discuss a testable research hypothesis / 検証可能な研究仮説を議論"
+title: "[Research] "
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: "Question or hypothesis / 質問・仮説"
+    validations:
+      required: true
+  - type: textarea
+    id: protocol
+    attributes:
+      label: "Protocol and reproduction / 実験手順と再現方法"
+      description: "Seeds, data, baselines, metrics, commands / シード、データ、比較手法、指標、コマンド"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: "Evidence and limitations / 根拠と制約"
+      description: "Separate measured findings from speculation / 測定結果と推測を区別"

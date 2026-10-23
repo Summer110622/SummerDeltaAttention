@@ -1,0 +1,26 @@
+name: "Feature request / 機能提案"
+description: "Propose an improvement / 改善を提案"
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: "Motivation / 背景"
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposal / 提案内容"
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives and trade-offs / 代替案とトレードオフ"
+      description: "Include API compatibility, memory, and runtime effects / API互換性、メモリ、実行時間への影響"
+  - type: textarea
+    id: verification
+    attributes:
+      label: "Acceptance criteria / 完了条件"
