@@ -1,2 +1,58 @@
-# SummerDeltaAttention
-SummerDeltaAttention
+# Summer Delta Attention (SDA)
+
+**Author: summer** · MIT License · research reference / unreviewed manuscript
+
+Summer Delta Attention v5-Gated (SDA-5) combines a **no-decay delta-rule fast-weight state** with a **bounded archive of original key/value pairs** and a **confidence-gated residual correction**. This repository is an educational research prototype, not a pretrained LLM or optimized linear-attention kernel.
+
+## Algorithm
+
+For normalized keys `k` and queries `q`, with `F` of shape `(d_key, d_value)`:
+
+```text
+error = v - F.T @ k
+F     = F + beta * outer(k, error)              # no multiplicative decay
+j     = argmax_i cosine(q, archived_key[i])     # exact archive scan
+accept = cosine(q, archived_key[j]) >= tau
+out    = F.T @ q + accept * (archived_value[j] - F.T @ archived_key[j])
+```
+
+The archive is maintained by uniform reservoir sampling with a fixed maximum capacity. **It is not a constant-memory exact-recall solution:** it incurs `O(B(d_key+d_value))` archive memory and `O(B*d_key)` query-search work, in addition to the `O(d_key*d_value)` delta-state update. Exact retrieval of an archived key algebraically recovers its saved value, but this does not generalize to unseen or missing keys.
+
+## Quick start
+
+```bash
+python -m pip install -e .
+python -m examples.quickstart
+python -m unittest discover -s tests -v
+```
+
+Python >=3.10 and NumPy >=1.24 are required. The [reference module](summer_delta_attention/reference.py) exposes `SummerDeltaAttention`, `kda_proxy_state` and `full_kv_attention`.
+
+## Manuscripts / 論文
+
+- [English academic note](papers/SDA_vs_KDA_EN.md)
+- [日本語の研究ノート](papers/SDA_vs_KDA_JA.md)
+- [Prior numerical study and reproduction script](research/experiment.py) (NumPy and pandas; its reported results use **16 held-out random seeds**, separate development calibration, and an untrained channel-gated KDA recurrence **proxy**)
+
+The existing 5-page bilingual PDF papers can be generated from the manuscript source in the companion research package; these Markdown manuscripts summarize the same protocol, equations and key measurements for accessible review in GitHub.
+
+## Synthetic recall results (not a language-model benchmark)
+
+| Method | Value MSE (n=512, exact-key queries) | State + stored KV (KiB) |
+| --- | ---: | ---: |
+| SDA-5 calibrated, 50% original KV archived | **0.4721 ± 0.0099** | 100 |
+| Indexed KV, zero fallback, same archive | 0.4962 ± 0.0101 | 96 |
+| KDA-style channel-decay proxy (untrained) | 0.9336 ± 0.0098 | **4** |
+| No-decay DeltaNet, calibrated | 0.9301 ± 0.0098 | **4** |
+
+These values come from the **separate benchmark** in `research/experiment.py`, not from `examples/quickstart.py`. KDA uses a deterministic development-calibrated gate, **not** a trained Kimi Linear implementation. SDA uses 25× the nominal state+KV capacity of the proxy. The sharp full-KV softmax comparator is not an equal-memory or trained full Transformer. The observed result **does not prove SDA is superior to KDA** or that the full hybrid is linear-time.
+
+## Reproduce prior synthetic study
+
+```bash
+python -m pip install numpy pandas matplotlib
+OPENBLAS_NUM_THREADS=1 python research/experiment.py
+OPENBLAS_NUM_THREADS=1 python research/figures.py
+```
+
+See [study protocol](papers/SDA_vs_KDA_EN.md) for the dev/test split, confidence gate, fairness limitations and references. Reports and implementations are experimental and should be cited as unreviewed work.
