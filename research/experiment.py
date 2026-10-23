@@ -103,6 +103,7 @@ def predictions(q,keys,values,state,indices,threshold):
     if len(indices)==0:
         out=q@state
         return {'SDA tuned':out,'KV only (zero fallback)':np.zeros_like(out), 'SDA legacy':out,
+                'softmax':np.zeros_like(out),
                 'hit':np.zeros(len(q),dtype=bool),'accepted':np.zeros(len(q),dtype=bool)}
     scores=q@keys[indices].T
     cols=np.argmax(scores,axis=1)
@@ -112,9 +113,32 @@ def predictions(q,keys,values,state,indices,threshold):
     vhat=values[match]
     out_fast=q@state
     correction=vhat-keys[match]@state
+    # Equal-memory control: the same sharp softmax as the Full-KV reference, but
+    # restricted to the retained archive (no gate, no fast state).
+    logits=SCALE*scores
+    weights=np.exp(logits-logits.max(axis=1,keepdims=True)); weights/=weights.sum(axis=1,keepdims=True)
     return {'SDA tuned':out_fast+accepted[:,None]*correction,
+            'softmax':weights@values[indices],
             'KV only (zero fallback)':np.where(accepted[:,None],vhat,0.),
             'hit':match,'accepted':accepted}
+
+
+T95_DF15=2.131449545559323  # two-sided 95% Student-t critical value, 15 d.o.f. (16 seeds)
+
+
+def paired_vs_sda(df,ref='SDA v5-Gated (calibrated)'):
+    """Per-seed paired differences (comparator - SDA); positive means SDA has lower MSE."""
+    rows=[]
+    for (n,noise,ret),g in df.groupby(['n','noise','retention']):
+        wide=g.pivot(index='seed',columns='method',values='mse')
+        assert len(wide)==len(TEST_SEEDS)==16, 'critical value assumes 16 seeds'
+        for other in wide.columns:
+            if other==ref: continue
+            d=(wide[other]-wide[ref]).to_numpy()
+            half=T95_DF15*d.std(ddof=1)/np.sqrt(len(d))
+            rows.append(dict(n=n,noise=noise,retention=ret,comparator=other,
+                             mean_diff=float(d.mean()),ci95_low=float(d.mean()-half),ci95_high=float(d.mean()+half)))
+    return pd.DataFrame(rows)
 
 
 def run():
@@ -140,7 +164,9 @@ def run():
                 preds_base={'KDA channel-gated proxy':q@S_kda,
                             'KDA unrestricted (alpha=1 boundary)':q@S_kda_boundary,
                             'No-decay DeltaNet (calibrated beta)':q@S_delta,
-                            'Full KV softmax (sharp)':full}
+                            'Full KV softmax (sharp)':full,
+                            # Values are N(0,1), so this is the trivial MSE~1 floor.
+                            'Zero predictor':np.zeros_like(targets)}
                 for frac in BUDGETS:
                     b=round(n*frac)
                     chosen=permutation[:b]
@@ -148,9 +174,12 @@ def run():
                     p_old=predictions(q,keys,values,S_old,chosen,.8)
                     pred={**preds_base, 'SDA v5-Gated (calibrated)':p['SDA tuned'],
                           'SDA v5-Gated (original)':p_old['SDA tuned'],
-                          'Indexed KV (zero fallback)':p['KV only (zero fallback)']}
+                          'Indexed KV (zero fallback)':p['KV only (zero fallback)'],
+                          'Archive softmax (same retained KV)':p['softmax']}
                     for method,output in pred.items():
-                        if method.startswith('KDA') or method.startswith('No-decay'):
+                        if method.startswith('Zero'):
+                            mem=0
+                        elif method.startswith('KDA') or method.startswith('No-decay'):
                             mem= D*V*8
                         elif method.startswith('Full'):
                             mem=n*(D+V)*8
@@ -168,6 +197,10 @@ def run():
     agg=df.groupby(['n','noise','retention','method'],as_index=False).agg(mean_mse=('mse','mean'),sd_mse=('mse','std'), memory_kib=('memory_kib','mean'),mean_hit=('hit_rate','mean'),mean_accept=('accepted_rate','mean'))
     agg['sem']=agg.sd_mse/np.sqrt(len(TEST_SEEDS))
     agg.to_csv(OUT/'summary_results.csv',index=False)
+    paired=paired_vs_sda(df)
+    paired.to_csv(OUT/'paired_results.csv',index=False)
+    print('Paired (comparator - SDA calibrated), n512 noise0 rho0.5')
+    print(paired[(paired.n==512)&(paired.noise==0)&(paired.retention==.5)].to_string(index=False))
     print('Config:',json.dumps(cfg,indent=2))
     print('Main n512 noise0 rho0.5')
     print(agg[(agg.n==512)&(agg.noise==0)&(agg.retention==.5)][['method','mean_mse','sem','memory_kib']].sort_values('mean_mse').to_string(index=False))
