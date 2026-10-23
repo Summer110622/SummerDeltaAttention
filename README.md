@@ -30,6 +30,8 @@ Python >=3.10 and NumPy >=1.24 are required. The [reference module](summer_delta
 
 ## Experiment figures
 
+The following PNG plots are included in this repository under [`assets/readme/`](assets/readme/). They are derived from the **16-seed synthetic benchmark**, not language-model training. Reproduce the figures using `research/summary_results.csv` and `research/figures.py`.
+
 ### Main comparison: SDA vs KDA
 
 <p align="center">
@@ -53,6 +55,7 @@ Python >=3.10 and NumPy >=1.24 are required. The [reference module](summer_delta
 </p>
 
 **Figure 3.** The third figure summarizes sensitivity to query noise and scaling with sequence length under the study protocol in `research/experiment.py`. These are controlled synthetic experiments, not downstream language-model evaluations.
+
 ## Manuscripts / 論文
 
 - [English academic paper (PDF)](papers/Summer_Delta_Attention_vs_KDA_EN.pdf) · [English Markdown](papers/SDA_vs_KDA_EN.md)
