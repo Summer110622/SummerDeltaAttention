@@ -21,7 +21,7 @@ The archive is maintained by uniform reservoir sampling with a fixed maximum cap
 ## Quick start
 
 ```bash
-python -m pip install -e .
+python -m pip install -e ".[research]"   # research extra: pandas + matplotlib (library alone needs only NumPy)
 python -m examples.quickstart
 python -m unittest discover -s tests -v
 ```
@@ -72,6 +72,8 @@ The included 5-page bilingual PDF papers contain the academic figures and full s
 | Indexed KV, zero fallback, same archive | 0.4962 ± 0.0101 | 96 |
 | KDA-style channel-decay proxy (untrained) | 0.9336 ± 0.0098 | **4** |
 | No-decay DeltaNet, calibrated | 0.9301 ± 0.0098 | **4** |
+| Zero predictor (always outputs 0) | 0.9786 ± 0.0098 | 0 |
+| Softmax over the same retained KV (no gate, no fast state) | 0.7432 ± 0.0155 | 96 |
 
 These values come from the **separate benchmark** in `research/experiment.py`, not from `examples/quickstart.py`. KDA uses a deterministic development-calibrated gate, **not** a trained Kimi Linear implementation. SDA uses 25× the nominal state+KV capacity of the proxy. The sharp full-KV softmax comparator is not an equal-memory or trained full Transformer. The observed result **does not prove SDA is superior to KDA** or that the full hybrid is linear-time.
 
@@ -82,5 +84,22 @@ python -m pip install numpy pandas matplotlib
 OPENBLAS_NUM_THREADS=1 python research/experiment.py
 OPENBLAS_NUM_THREADS=1 python research/figures.py
 ```
+
+The script writes `configuration.json`, `raw_results.csv`, `summary_results.csv` and `paired_results.csv` (per-seed paired differences with 95% Student-t intervals) next to itself; all four are committed so the numbers can be audited. `tests/test_artifacts.py` fails if the committed CSV, `figures.py` and the README headline numbers drift apart, and `tests/test_reference.py` checks that the packaged class agrees with the benchmark's SDA implementation.
+
+## How to read the results (added after adversarial review)
+
+- **The headline gap is mostly archive size.** Indexed-KV error is about `1 − hit rate`. The fast delta state improves misses by only ~5% and is barely better than the zero predictor (0.930 vs 0.979 MSE). Paired difference of SDA over indexed KV: **+0.0241 [0.0217, 0.0265]** at n=512, but **+0.0019 [−0.0011, 0.0050]** at n=2048 (indistinguishable from zero).
+- **Hard gate vs soft attention.** With the full archive (ρ=1; 196 KiB for SDA vs 192 KiB for full KV) and query noise σ=1, SDA reaches 0.665 MSE (n=512) while plain softmax attention reaches 0.0415; the gate accepts only 29.6% of queries although the correct key is retrieved 97.5% of the time. The threshold was calibrated on σ∈{0, 0.4} at 50% retention only. On a *partial* archive (ρ=0.5, σ=0) softmax over the retained KV is much worse (0.743) than gated retrieval.
+- **Task bias.** Queries are uniform over all past keys with i.i.d. random keys/values: no recency, overwrites, distractors or anisotropic keys. Calibration of the "KDA proxy" therefore selects almost no forgetting, and the proxy (time-invariant per-channel decay) is not Kimi Delta Attention.
+- **Capacity.** d_k=32 holds ~32 associations but 512–2048 are written; no equal-memory baseline with a larger state or a recency/eviction-policy KV cache is included.
+
+## Errata / changes in 0.1.1
+
+- Fixed: rewriting an archived key now **overwrites** its slot. Previously the oldest value for a duplicate key was returned and the correction cancelled the freshly updated delta state. (Behaviour change: duplicates no longer consume archive capacity.)
+- Fixed: normalisation no longer overflows for huge finite vectors; the archive is a preallocated array (no per-read `np.stack`); `kda_proxy_state` validates that keys are L2-normalised.
+- Fixed: `research/summary_results.csv` was stale (method names differed from `experiment.py`, KDA identical to DeltaNet, so `figures.py` could not run and the README's 0.9336 was absent). It is regenerated; the README/manuscript numbers reproduce, including the paired intervals. `raw_results.csv`, `configuration.json` and the new `paired_results.csv` are now committed.
+- Added: zero-predictor and same-archive softmax baselines; reservoir-uniformity, overwrite, gate, dtype and overflow tests; library-vs-benchmark equivalence test.
+- Not changed: the PDF/Markdown manuscripts (their reported numbers were re-checked against the regenerated CSV, but they do not include the two new baselines), and the open limitations above.
 
 See [study protocol](papers/SDA_vs_KDA_EN.md) for the dev/test split, confidence gate, fairness limitations and references. Reports and implementations are experimental and should be cited as unreviewed work.

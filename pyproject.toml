@@ -4,11 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "summer-delta-attention"
-version = "0.1.0"
+version = "0.1.1"
 description = "Research reference for SDA v5-Gated: no-decay delta state with indexed KV correction"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+research = ["pandas>=2.0", "matplotlib>=3.7"]
 authors = [{name = "summer"}]
 license = {text = "MIT"}
 
