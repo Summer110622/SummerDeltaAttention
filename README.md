@@ -30,11 +30,11 @@ Python >=3.10 and NumPy >=1.24 are required. The [reference module](summer_delta
 
 ## Manuscripts / 論文
 
-- [English academic note](papers/SDA_vs_KDA_EN.md)
-- [日本語の研究ノート](papers/SDA_vs_KDA_JA.md)
+- [English academic paper (PDF)](papers/Summer_Delta_Attention_vs_KDA_EN.pdf) · [English Markdown](papers/SDA_vs_KDA_EN.md)
+- [日本語論文 (PDF)](papers/Summer_Delta_Attention_vs_KDA_JA.pdf) · [日本語Markdown](papers/SDA_vs_KDA_JA.md)
 - [Prior numerical study and reproduction script](research/experiment.py) (NumPy and pandas; its reported results use **16 held-out random seeds**, separate development calibration, and an untrained channel-gated KDA recurrence **proxy**)
 
-The existing 5-page bilingual PDF papers can be generated from the manuscript source in the companion research package; these Markdown manuscripts summarize the same protocol, equations and key measurements for accessible review in GitHub.
+The included 5-page bilingual PDF papers contain the academic figures and full study; the Markdown versions give GitHub-readable equations, protocol, key measurements, and citations.
 
 ## Synthetic recall results (not a language-model benchmark)
 
