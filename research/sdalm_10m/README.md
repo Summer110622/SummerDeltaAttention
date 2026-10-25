@@ -4,7 +4,7 @@ Causal language-model stack at the frozen shape **d_model=256, 6 layers, 4 heads
 
 This directory is a scaffold plus a smoke train. It does not show that a trained layer works.
 
-Design notes: [DESIGN.md](DESIGN.md). ρ plan (not run): [ABLATION_RHO.md](ABLATION_RHO.md). A3 protocol (canonical): [EVAL_PROTOCOL_JA.md](EVAL_PROTOCOL_JA.md). Frozen face-wise table: [`BEST_RESULTS.md`](../../BEST_RESULTS.md).
+Design notes: [DESIGN.md](DESIGN.md). ρ OFAT (CALIB log, not an LM result): [ABLATION_RHO.md](ABLATION_RHO.md). A3 protocol (canonical): [EVAL_PROTOCOL_JA.md](EVAL_PROTOCOL_JA.md). Frozen face-wise table: [`BEST_RESULTS.md`](../../BEST_RESULTS.md).
 
 ## Run
 
@@ -23,7 +23,9 @@ python research/sdalm_10m/train_smoke.py
 
 `train_smoke.py` uses seed 0, CPU, and four AdamW steps on one fixed synthetic MQAR batch. AdamW updates only `beta_logit`, `tau_logit`, and `gate_log_temp`. Other parameters keep gradients for the finite-grad check and are not in the optimizer. The script also checks the frozen parameter count, that the vectorized delta scan matches a sequential reference, and that acceptance is defined only on the recency block. The loss lines are that smoke. They are not an evaluation.
 
-`python research/sdalm_10m/gate_f16_dualwrite.py` compares a float64 reference with a float16 dual-write on synthetic KV from CALIB seeds 20250001–20250008 only. Exit 0 is PASS. It does not read LM batches from 20300001 onward. The committed CALIB pass is `logs/gate_f16_dualwrite_calib.json`. The ρ table is still not a run.
+`python research/sdalm_10m/gate_f16_dualwrite.py` compares a float64 reference with a float16 dual-write on synthetic KV from CALIB seeds 20250001–20250008 only. Exit 0 is PASS. It does not read LM batches from 20300001 onward. The committed CALIB pass is `logs/gate_f16_dualwrite_calib.json`.
+
+`python research/sdalm_10m/ablation_rho.py` is the ρ OFAT on `archive_cap` only, after that gate PASSes. It uses the same MQAR schedule as the A3 smoke and CALIB seeds only. The numbers stay in `ABLATION_RHO.md` and `logs/ablation_rho_calib.json`. They are not an LM result. TEST and HOLDOUT are not opened.
 
 `python research/sdalm_10m/a3_cpu_smoke.py` is the A3 CPU smoke from `EVAL_PROTOCOL_JA.md`. It trains SDA-Recency with the soft gate and evaluates with the hard gate. AdamW updates only the three SDA knobs. The other two mixers are same-shape causal softmax attention and no-decay delta (no archive, not Expanded). Seeds are 20300001 and 20300002. The step count is fixed. Cross-entropy stays in `logs/a3_cpu_smoke.jsonl`.
 
@@ -32,7 +34,7 @@ python research/sdalm_10m/train_smoke.py --variant expanded
 python research/sdalm_10m/train_smoke.py --steps 4 --seed 0
 ```
 
-β starts at 0.05. Recency τ starts at 0.75. Both are learnable, as is the gate temperature. The forward uses a soft gate. A hard gate runs only in eval when `hard_gate_eval` is set. Archive ρ is not trained; a later ablation is ρ ∈ {small, base, large} around the base ring of 32.
+β starts at 0.05. Recency τ starts at 0.75. Both are learnable, as is the gate temperature. The forward uses a soft gate. A hard gate runs only in eval when `hard_gate_eval` is set. Archive ρ is not a trained parameter. The CALIB cap grid is `ablation_rho.py`.
 
 The batch in `data_mqar.py` is random integer ids. No corpus is downloaded. The mixer does not loop over tokens in Python: the delta rule is an associative scan, and the ring is a banded score tensor. That is not a fused kernel and not `fla`.
 
@@ -47,4 +49,4 @@ The batch in `data_mqar.py` is random integer ids. No corpus is downloaded. The 
 * No `fla`, and no Kimi Delta Attention dependency. Papers a later comparison would cite (DeltaNet, Gated DeltaNet, Kimi Linear / KDA) are listed in DESIGN.md. Their numbers are not results of this scaffold.
 * `accepted_rate` is recency-only, from that block's own scores. Expanded does not get a copied rate. This scaffold does not emit `hit_rate`.
 * The loss lines from `train_smoke.py`, and the cross-entropy in `logs/a3_cpu_smoke.jsonl`, stay out of papers, the repo-root README, and `RESEARCH_STATUS.md`.
-* Archive ρ is still not run. The f16 gate pass does not start that table.
+* The f16 gate PASS is what allows `ablation_rho.py`. That CALIB grid is not an LM result, and its cross-entropy stays out of this page.

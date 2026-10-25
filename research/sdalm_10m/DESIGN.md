@@ -83,7 +83,7 @@ Bytes are `entries * dtype.itemsize` via `torch.empty((), dtype=dtype).element_s
 
 ## Archive ρ later
 
-The OFAT plan is [`ABLATION_RHO.md`](ABLATION_RHO.md). It is not a run. ρ ∈ {small ≈ 0.25, base = archive_cap 32, large ≈ 0.75 or the Core cap}. β stays 0.05, the gate stays soft in train and hard in eval, and the archive stays Recency-B. τ then β are touched only after ρ shows a main effect. The f16 gate PASS is recorded in `logs/gate_f16_dualwrite_calib.json`. The ρ table stays empty; this round does not run those cells.
+The OFAT record is [`ABLATION_RHO.md`](ABLATION_RHO.md). The first grid varies only `archive_cap`, with C = 32 chosen in that memo because this file does not number C. The three rings are 8, the Core point 32, and 24. β stays 0.05 at init, the gate stays soft in train and hard in eval, and the archive stays the scaffold ring. τ then β are touched only after ρ shows a main effect on next-token CE. The f16 gate PASS is recorded in `logs/gate_f16_dualwrite_calib.json`. The CALIB means live in that memo and in `logs/ablation_rho_calib.json`. They are not an LM result.
 
 ## Parameter count
 
@@ -114,4 +114,4 @@ Context only. No number from these papers is a result of this repository, and th
 * The hard face is not the overall best. Hard = SDA-Recency. iid and old-skew = Expanded.
 * Do not describe this stack with 「有望な中間」 or 「全面勝ち」.
 * Do not cite the old README gap (SDA 0.4721 vs a 4 KiB KDA-style proxy 0.9336) as a win. That pair is unequal memory, and the proxy is not Kimi Linear.
-* Archive ρ ∈ {small, base, large} is the first ablation later. It is not in this run.
+* Archive ρ ∈ {small, base, large} has a CALIB OFAT in `ABLATION_RHO.md`. That log is not language-model efficacy.

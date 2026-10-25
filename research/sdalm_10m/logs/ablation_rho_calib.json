@@ -1,0 +1,205 @@
+{
+  "result": "ofat_ok",
+  "exit": 0,
+  "claim": "calib_ofat_only",
+  "not_lm_efficacy": true,
+  "not_comprehensive_win": true,
+  "device": "cpu",
+  "dtype": "float32",
+  "torch_num_threads": 1,
+  "C": 32,
+  "C_defined_by_protocol": false,
+  "C_note": "DESIGN.md and EVAL_PROTOCOL_JA.md do not assign an integer to C. This round uses 32 so round(0.25*C), the core cap 32, and round(0.75*C) are three different rings.",
+  "core_archive_cap": 32,
+  "base_is_half_C": false,
+  "shape": {
+    "vocab": 8000,
+    "d_model": 256,
+    "n_layer": 6,
+    "n_head": 4,
+    "d_ff": 1024
+  },
+  "variant": "recency",
+  "archive_policy": "scaffold ring of the last archive_cap positions (continuous keys; not a second Recency-B implementation)",
+  "beta_init": 0.05,
+  "tau_init": 0.75,
+  "train_gate": "soft",
+  "eval_gate": "hard",
+  "adamw": "sda_knobs_only",
+  "steps": 2,
+  "early_stop": false,
+  "lr": 0.0003,
+  "weight_decay": 0.0,
+  "batch_size": 2,
+  "n_pairs": 20,
+  "n_queries": 4,
+  "train_seeds": [
+    20250001,
+    20250002,
+    20250003,
+    20250004
+  ],
+  "eval_seeds": [
+    20250005,
+    20250006,
+    20250007,
+    20250008
+  ],
+  "seed_band": "CALIB",
+  "test_opened": false,
+  "holdout_opened": false,
+  "lm_band_opened": false,
+  "gate": {
+    "result": "PASS",
+    "exit": 0,
+    "seeds": [
+      20250001,
+      20250002,
+      20250003,
+      20250004,
+      20250005,
+      20250006,
+      20250007,
+      20250008
+    ]
+  },
+  "definitions": {
+    "next_token_ce": "full-sequence next-token cross-entropy on the hard-eval forward, same reduction as a3_cpu_smoke",
+    "ppl": "exp(mean over the four CALIB pairs of full-sequence next-token CE)",
+    "mse": "mean over MQAR answer positions of sum_v (softmax(logit)_v - 1_{v=target})^2; internal Brier score on this cell's hard-eval logits, not the synthetic-face value MSE",
+    "hit_rate": "fraction of MQAR query positions where this recency block's argmax over strictly earlier ring positions has the same token id as the query; mean over heads, queries, batch, and layers. The current position is excluded: it is the query token, not a retrieved write",
+    "accepted_rate": "mean over layers of SDABlock.acceptance_rate on the eval batch: fraction of positions whose best in-ring cosine, including the current position, clears that block's own tau",
+    "kib": "one-sequence six-layer recency rule state: entries * float32 itemsize / 1024. Not a hardcoded * 8, not the scan workspace, batch 1",
+    "source_in_ring_rate": "fraction of MQAR queries whose source key position is still inside the past ring; geometry of the batch, not a retrieval mask"
+  },
+  "eval_ce_max_abs_diff_across_cells": 0.0,
+  "cells": [
+    {
+      "cell": "small",
+      "rho": 0.25,
+      "role": "round(0.25 * C)",
+      "archive_cap": 8,
+      "clipped_to_core": false,
+      "n_pairs": 4,
+      "next_token_ce": 9.063178777694702,
+      "next_token_ce_sd": 0.008577529616546384,
+      "ppl": 8631.544853171987,
+      "mse": 0.999904990196228,
+      "hit_rate": 0.020833333333333336,
+      "hit_rate_sd": 0.015332918170708068,
+      "accepted_rate": 0.0,
+      "source_in_ring_rate": 0.125,
+      "kib": 480.0,
+      "state_nbytes": 491520,
+      "per_seed_eval_ce": [
+        9.054065704345703,
+        9.064098358154297,
+        9.074460983276367,
+        9.060090065002441
+      ],
+      "per_seed_hit_rate": [
+        0.020833333333333332,
+        0.036458333333333336,
+        0.0,
+        0.026041666666666668
+      ],
+      "per_seed_accepted_rate": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_seed_mse": [
+        0.9998908638954163,
+        0.9998792409896851,
+        0.9999426007270813,
+        0.9999072551727295
+      ]
+    },
+    {
+      "cell": "base",
+      "rho": null,
+      "role": "core budget point, not round(0.5 * C)",
+      "archive_cap": 32,
+      "clipped_to_core": false,
+      "n_pairs": 4,
+      "next_token_ce": 9.063178777694702,
+      "next_token_ce_sd": 0.008577529616546384,
+      "ppl": 8631.544853171987,
+      "mse": 0.999904990196228,
+      "hit_rate": 0.016927083333333332,
+      "hit_rate_sd": 0.0078125,
+      "accepted_rate": 0.0,
+      "source_in_ring_rate": 0.71875,
+      "kib": 768.0,
+      "state_nbytes": 786432,
+      "per_seed_eval_ce": [
+        9.054065704345703,
+        9.064098358154297,
+        9.074460983276367,
+        9.060090065002441
+      ],
+      "per_seed_hit_rate": [
+        0.020833333333333332,
+        0.020833333333333332,
+        0.005208333333333333,
+        0.020833333333333332
+      ],
+      "per_seed_accepted_rate": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_seed_mse": [
+        0.9998908638954163,
+        0.9998792409896851,
+        0.9999426007270813,
+        0.9999072551727295
+      ]
+    },
+    {
+      "cell": "large",
+      "rho": 0.75,
+      "role": "round(0.75 * C), clipped to the core cap only if that product exceeds it",
+      "archive_cap": 24,
+      "clipped_to_core": false,
+      "n_pairs": 4,
+      "next_token_ce": 9.063178777694702,
+      "next_token_ce_sd": 0.008577529616546384,
+      "ppl": 8631.544853171987,
+      "mse": 0.999904990196228,
+      "hit_rate": 0.010416666666666666,
+      "hit_rate_sd": 0.00736569563735987,
+      "accepted_rate": 0.0,
+      "source_in_ring_rate": 0.34375,
+      "kib": 672.0,
+      "state_nbytes": 688128,
+      "per_seed_eval_ce": [
+        9.054065704345703,
+        9.064098358154297,
+        9.074460983276367,
+        9.060090065002441
+      ],
+      "per_seed_hit_rate": [
+        0.005208333333333333,
+        0.020833333333333332,
+        0.005208333333333333,
+        0.010416666666666666
+      ],
+      "per_seed_accepted_rate": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_seed_mse": [
+        0.9998908638954163,
+        0.9998792409896851,
+        0.9999426007270813,
+        0.9999072551727295
+      ]
+    }
+  ],
+  "command": "python research/sdalm_10m/ablation_rho.py"
+}

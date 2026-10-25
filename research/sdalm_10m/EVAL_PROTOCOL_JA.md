@@ -66,8 +66,8 @@ float64 参照と float16 dual-write（高速状態 F とアーカイブ K, V �
 | 閾値の置き場 | スクリプト先頭の定数。CLI や smoke シードから代入しない |
 | 終了 | exit 0 = PASS。それ以外は FAIL。最後に 1 行の JSON |
 
-ρ の 3 点（[`ABLATION_RHO.md`](ABLATION_RHO.md)）は、このゲートが PASS するまで走らせない。
+ρ の 3 点（[`ABLATION_RHO.md`](ABLATION_RHO.md)）は、このゲートが PASS するまで走らせない。PASS のあと、探索の 3 点は CALIB シードだけを使う `ablation_rho.py` が記録する。TEST と HOLDOUT は開かない。LM 帯 20300001– は校正に混ぜない。数値は `ABLATION_RHO.md` と `logs/ablation_rho_calib.json` に置き、このファイルには写さない。
 
 ## 計算の範囲
 
-いま走らせるのは CPU スモークと、上のゲートである。GPU、TinyStories、fla、SOTA の宣言は、プロトコルと Safety が済むまで行わない。DeltaNet、Gated DeltaNet、Kimi Linear / KDA は引用先であり、このプロトコルの測定対象ではない。
+いま走らせる CPU の範囲は、スモーク、上のゲート、およびゲート PASS 後の CALIB ρ グリッドである。GPU、TinyStories、fla、SOTA の宣言は、プロトコルと Safety が済むまで行わない。DeltaNet、Gated DeltaNet、Kimi Linear / KDA は引用先であり、このプロトコルの測定対象ではない。
