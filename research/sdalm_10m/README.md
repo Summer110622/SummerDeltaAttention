@@ -25,7 +25,7 @@ python research/sdalm_10m/train_smoke.py
 
 `python research/sdalm_10m/gate_f16_dualwrite.py` compares a float64 reference with a float16 dual-write on synthetic KV from CALIB seeds 20250001–20250008 only. Exit 0 is PASS. It does not read LM batches from 20300001 onward. The committed CALIB pass is `logs/gate_f16_dualwrite_calib.json`.
 
-`python research/sdalm_10m/ablation_rho.py` is the ρ OFAT on `archive_cap` only, after that gate PASSes. It uses the same MQAR schedule as the A3 smoke and CALIB seeds only. The numbers stay in `ABLATION_RHO.md` and `logs/ablation_rho_calib.json`. They are not an LM result. TEST and HOLDOUT are not opened.
+`python research/sdalm_10m/ablation_rho.py` is the ρ OFAT on `archive_cap` only, after that gate PASSes. Train uses the ordinary MQAR schedule. CALIB eval uses the exact-key mix (π_exact = 1, σ = 0). Seeds are CALIB only. The log stays in `ABLATION_RHO.md` and `logs/ablation_rho_calib.json`. It is not an LM result. A closed hard gate is not a null effect of ρ. TEST and HOLDOUT are not opened.
 
 `python research/sdalm_10m/a3_cpu_smoke.py` is the A3 CPU smoke from `EVAL_PROTOCOL_JA.md`. It trains SDA-Recency with the soft gate and evaluates with the hard gate. AdamW updates only the three SDA knobs. The other two mixers are same-shape causal softmax attention and no-decay delta (no archive, not Expanded). Seeds are 20300001 and 20300002. The step count is fixed. Cross-entropy stays in `logs/a3_cpu_smoke.jsonl`.
 

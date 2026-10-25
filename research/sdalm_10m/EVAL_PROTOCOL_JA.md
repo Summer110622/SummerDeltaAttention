@@ -66,7 +66,7 @@ float64 参照と float16 dual-write（高速状態 F とアーカイブ K, V �
 | 閾値の置き場 | スクリプト先頭の定数。CLI や smoke シードから代入しない |
 | 終了 | exit 0 = PASS。それ以外は FAIL。最後に 1 行の JSON |
 
-ρ の 3 点（[`ABLATION_RHO.md`](ABLATION_RHO.md)）は、このゲートが PASS するまで走らせない。PASS のあと、探索の 3 点は CALIB シードだけを使う `ablation_rho.py` が記録する。TEST と HOLDOUT は開かない。LM 帯 20300001– は校正に混ぜない。数値は `ABLATION_RHO.md` と `logs/ablation_rho_calib.json` に置き、このファイルには写さない。
+ρ の 3 点（[`ABLATION_RHO.md`](ABLATION_RHO.md)）は、このゲートが PASS するまで走らせない。PASS のあと、探索の 3 点は CALIB シードだけを使う `ablation_rho.py` が記録する。TEST と HOLDOUT は開かない。LM 帯 20300001– は校正に混ぜない。学習バッチは従来の MQAR（ペア添字は一様）のままとする。CALIB の評価バッチだけを exact-key 混合にする（π_exact=1、σ=0）。クエリトークンはソース鍵そのものである。ソースは、共有の小さい cap にまだ入っているペアがあればその中から選び、無ければ直前の鍵を写す。三つの cap は同じ評価列を見る。τ は 0.75 のまま再ロックしない。`accepted_rate` が 0 のセルがあるとき、次トークン CE は ρ について識別不能であり、効果なしとは書かない。数値はこのファイルに写さない。置き場は `ABLATION_RHO.md` と `logs/ablation_rho_calib.json` である。
 
 ## 計算の範囲
 

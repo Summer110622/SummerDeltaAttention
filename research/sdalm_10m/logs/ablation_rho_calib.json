@@ -37,8 +37,15 @@
   "archive_policy": "scaffold ring of the last archive_cap positions (continuous keys; not a second Recency-B implementation)",
   "beta_init": 0.05,
   "tau_init": 0.75,
+  "tau_relock": false,
   "train_gate": "soft",
   "eval_gate": "hard",
+  "train_query_mix": "uniform",
+  "eval_query_mix": "exact_key",
+  "eval_pi_exact": 1.0,
+  "eval_sigma": 0.0,
+  "eval_source_cap": 8,
+  "eval_mix_note": "Train which is uniform over the 20 pairs. CALIB eval which is exact-key: pi_exact=1, sigma=0, query token equals the source key. Sources are drawn from pairs inside cap 8 when any exist, and that sequence is shared by all three cells. The last query is 8 steps after the final pair key, so cap 8 does not hold it; caps 32 and 96 do. Tau stays 0.75.",
   "adamw": "sda_knobs_only",
   "steps": 2,
   "early_stop": false,
@@ -84,9 +91,69 @@
     "hit_rate": "fraction of MQAR query positions where this recency block's argmax over strictly earlier ring positions has the same token id as the query; mean over heads, queries, batch, and layers. The current position is excluded: it is the query token, not a retrieved write",
     "accepted_rate": "mean over layers of SDABlock.acceptance_rate on the eval batch: fraction of positions whose best in-ring cosine, including the current position, clears that block's own tau",
     "kib": "one-sequence six-layer recency rule state: entries * float32 itemsize / 1024. Not a hardcoded * 8, not the scan workspace, batch 1",
-    "source_in_ring_rate": "fraction of MQAR queries whose source key position is still inside the past ring; geometry of the batch, not a retrieval mask"
+    "source_in_ring_rate": "fraction of MQAR queries whose source key position is still inside the past ring; geometry of the batch, not a retrieval mask",
+    "best_in_ring_cosine_max": "max over layers, heads, and positions of the best in-ring cosine on that eval batch, including the current position. Diagnostic for the hard gate. Not a second accepted_rate"
   },
+  "critic_health": {
+    "checked_before_ce": true,
+    "rule": "each cell accepted_rate > 0 before CE is read; prefer every CALIB eval seed > 0 and mean >= 0.05. A zero cell is UNIDENTIFIABLE, not a null effect",
+    "prefer_mean_floor": 0.05,
+    "cells": [
+      {
+        "cell": "small",
+        "accepted_rate": 0.0,
+        "every_seed_positive": false,
+        "mean_at_least_floor": false,
+        "cosine_below_tau_every_seed": true,
+        "per_seed_accepted_rate": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "cell": "base",
+        "accepted_rate": 0.0,
+        "every_seed_positive": false,
+        "mean_at_least_floor": false,
+        "cosine_below_tau_every_seed": true,
+        "per_seed_accepted_rate": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "cell": "large",
+        "accepted_rate": 0.0,
+        "every_seed_positive": false,
+        "mean_at_least_floor": false,
+        "cosine_below_tau_every_seed": true,
+        "per_seed_accepted_rate": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    ],
+    "each_cell_accepted_rate_positive": false,
+    "prefer_gate": false,
+    "passed": false,
+    "rho_effect": "UNIDENTIFIABLE",
+    "ce_interpretable": false,
+    "follow_up": "stopped_for_human_review",
+    "tau_relock": false,
+    "null_effect_claimed": false
+  },
+  "rho_effect": "UNIDENTIFIABLE",
+  "ce_interpretable": false,
+  "null_effect_claimed": false,
+  "follow_up": "stopped_for_human_review",
   "eval_ce_max_abs_diff_across_cells": 0.0,
+  "eval_ce_note": "stored with the grid. Readable as a rho measurement only when ce_interpretable is true. A shared CE with accepted_rate 0 is UNIDENTIFIABLE, not a null effect",
   "cells": [
     {
       "cell": "small",
@@ -97,27 +164,29 @@
       "fraction_of_C": false,
       "ring_evicts": true,
       "n_pairs": 4,
-      "next_token_ce": 9.063178777694702,
-      "next_token_ce_sd": 0.008577529616546384,
-      "ppl": 8631.544853171987,
-      "mse": 0.999904990196228,
-      "hit_rate": 0.020833333333333336,
-      "hit_rate_sd": 0.015332918170708068,
+      "next_token_ce": 9.06842303276062,
+      "next_token_ce_sd": 0.025875459287844522,
+      "ppl": 8676.929777037949,
+      "mse": 0.999919980764389,
+      "hit_rate": 0.19010416666666666,
+      "hit_rate_sd": 0.03670551130532287,
       "accepted_rate": 0.0,
-      "source_in_ring_rate": 0.125,
+      "best_in_ring_cosine_max": 0.5177628397941589,
+      "tau_min": 0.7497373819351196,
+      "source_in_ring_rate": 0.75,
       "kib": 480.0,
       "state_nbytes": 491520,
       "per_seed_eval_ce": [
-        9.054065704345703,
-        9.064098358154297,
-        9.074460983276367,
-        9.060090065002441
+        9.056499481201172,
+        9.093174934387207,
+        9.086211204528809,
+        9.037806510925293
       ],
       "per_seed_hit_rate": [
-        0.020833333333333332,
-        0.036458333333333336,
-        0.0,
-        0.026041666666666668
+        0.22916666666666666,
+        0.16145833333333334,
+        0.21354166666666666,
+        0.15625
       ],
       "per_seed_accepted_rate": [
         0.0,
@@ -125,11 +194,23 @@
         0.0,
         0.0
       ],
+      "per_seed_best_in_ring_cosine_max": [
+        0.42569491267204285,
+        0.5177628397941589,
+        0.4673256278038025,
+        0.46059519052505493
+      ],
+      "per_seed_tau_min": [
+        0.7497373819351196,
+        0.7497373819351196,
+        0.7497373819351196,
+        0.7497373819351196
+      ],
       "per_seed_mse": [
-        0.9998908638954163,
-        0.9998792409896851,
-        0.9999426007270813,
-        0.9999072551727295
+        0.9999479055404663,
+        0.9999755620956421,
+        0.9998655915260315,
+        0.9998908638954163
       ]
     },
     {
@@ -141,27 +222,29 @@
       "fraction_of_C": false,
       "ring_evicts": true,
       "n_pairs": 4,
-      "next_token_ce": 9.063178777694702,
-      "next_token_ce_sd": 0.008577529616546384,
-      "ppl": 8631.544853171987,
-      "mse": 0.999904990196228,
-      "hit_rate": 0.016927083333333332,
-      "hit_rate_sd": 0.0078125,
+      "next_token_ce": 9.06842303276062,
+      "next_token_ce_sd": 0.025875459287844522,
+      "ppl": 8676.929777037949,
+      "mse": 0.999919980764389,
+      "hit_rate": 0.028645833333333336,
+      "hit_rate_sd": 0.01778984507979097,
       "accepted_rate": 0.0,
-      "source_in_ring_rate": 0.71875,
+      "best_in_ring_cosine_max": 0.5728760361671448,
+      "tau_min": 0.7497373819351196,
+      "source_in_ring_rate": 1.0,
       "kib": 768.0,
       "state_nbytes": 786432,
       "per_seed_eval_ce": [
-        9.054065704345703,
-        9.064098358154297,
-        9.074460983276367,
-        9.060090065002441
+        9.056499481201172,
+        9.093174934387207,
+        9.086211204528809,
+        9.037806510925293
       ],
       "per_seed_hit_rate": [
-        0.020833333333333332,
-        0.020833333333333332,
+        0.046875,
+        0.036458333333333336,
         0.005208333333333333,
-        0.020833333333333332
+        0.026041666666666668
       ],
       "per_seed_accepted_rate": [
         0.0,
@@ -169,11 +252,23 @@
         0.0,
         0.0
       ],
+      "per_seed_best_in_ring_cosine_max": [
+        0.5728760361671448,
+        0.5177628397941589,
+        0.4911438226699829,
+        0.46059519052505493
+      ],
+      "per_seed_tau_min": [
+        0.7497373819351196,
+        0.7497373819351196,
+        0.7497373819351196,
+        0.7497373819351196
+      ],
       "per_seed_mse": [
-        0.9998908638954163,
-        0.9998792409896851,
-        0.9999426007270813,
-        0.9999072551727295
+        0.9999479055404663,
+        0.9999755620956421,
+        0.9998655915260315,
+        0.9998908638954163
       ]
     },
     {
@@ -185,25 +280,27 @@
       "fraction_of_C": true,
       "ring_evicts": false,
       "n_pairs": 4,
-      "next_token_ce": 9.063178777694702,
-      "next_token_ce_sd": 0.008577529616546384,
-      "ppl": 8631.544853171987,
-      "mse": 0.999904990196228,
-      "hit_rate": 0.016927083333333332,
-      "hit_rate_sd": 0.008894922539895486,
+      "next_token_ce": 9.06842303276062,
+      "next_token_ce_sd": 0.025875459287844522,
+      "ppl": 8676.929777037949,
+      "mse": 0.999919980764389,
+      "hit_rate": 0.026041666666666668,
+      "hit_rate_sd": 0.01647019614671031,
       "accepted_rate": 0.0,
+      "best_in_ring_cosine_max": 0.5743206143379211,
+      "tau_min": 0.7497373819351196,
       "source_in_ring_rate": 1.0,
       "kib": 1536.0,
       "state_nbytes": 1572864,
       "per_seed_eval_ce": [
-        9.054065704345703,
-        9.064098358154297,
-        9.074460983276367,
-        9.060090065002441
+        9.056499481201172,
+        9.093174934387207,
+        9.086211204528809,
+        9.037806510925293
       ],
       "per_seed_hit_rate": [
-        0.015625,
-        0.026041666666666668,
+        0.041666666666666664,
+        0.036458333333333336,
         0.005208333333333333,
         0.020833333333333332
       ],
@@ -213,11 +310,23 @@
         0.0,
         0.0
       ],
+      "per_seed_best_in_ring_cosine_max": [
+        0.5743206143379211,
+        0.5177628397941589,
+        0.4911438226699829,
+        0.46059519052505493
+      ],
+      "per_seed_tau_min": [
+        0.7497373819351196,
+        0.7497373819351196,
+        0.7497373819351196,
+        0.7497373819351196
+      ],
       "per_seed_mse": [
-        0.9998908638954163,
-        0.9998792409896851,
-        0.9999426007270813,
-        0.9999072551727295
+        0.9999479055404663,
+        0.9999755620956421,
+        0.9998655915260315,
+        0.9998908638954163
       ]
     }
   ],

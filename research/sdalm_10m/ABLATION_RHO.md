@@ -1,6 +1,6 @@
 # ρ ablation memo (OFAT) — CALIB exploratory
 
-One factor was varied: the recency ring width `archive_cap`. This page records that CPU float32 grid. It is not an LM result, and it is not a ranking of faces. Do not copy the cells below into the README, the papers, or `RESEARCH_STATUS.md`.
+One factor was varied: the recency ring width `archive_cap`. This page records that CPU float32 grid. It is exploratory CALIB only. It is not an LM result, and it is not a ranking of faces. Do not copy the cells below into the README, the papers, or `RESEARCH_STATUS.md`.
 
 The command re-checks the float16 dual-write gate and does not score a cell unless that gate returns exit 0. This run's log records that check as PASS on CALIB seeds 20250001–20250008. Rules for the gate stay in [`EVAL_PROTOCOL_JA.md`](EVAL_PROTOCOL_JA.md) and in the constants at the top of `gate_f16_dualwrite.py`.
 
@@ -17,15 +17,16 @@ Logs: `logs/ablation_rho_calib.json` (means) and `logs/ablation_rho_calib.jsonl`
 | Layout | SDA-Recency only. Expanded and Hybrid are not in this grid |
 | Archive policy | The scaffold ring: the last `archive_cap` positions. DESIGN.md's continuous-key stand-in for Recency-B. This run does not add a same-key overwrite test |
 | β | 0.05 at init, not swept. AdamW may move the knob |
-| τ | 0.75 at init, not swept. AdamW may move the knob |
+| τ | 0.75 at init, not swept and not re-locked. AdamW may move the knob |
 | Gate | soft while training, `g̃ = σ((cos − τ) / T)`; hard `1[cos ≥ τ]` at eval. No STE |
 | Optimizer | AdamW on `beta_logit`, `tau_logit`, `gate_log_temp` only. Two steps, no early stop, lr 3e-4, weight decay 0 |
 | Memory | byte count is `entries * dtype.itemsize`. No hardcoded `* 8` |
 | Shape | frozen Core stack: d_model 256, 6 layers, 4 heads, d_ff 1024, vocab 8000 |
-| Task | MQAR hard, same batch as `a3_cpu_smoke.py`: batch 2, 20 pairs, 4 queries, length 47. CPU float32, one thread |
+| Train mix | Ordinary MQAR, same batch builder as `a3_cpu_smoke.py`: uniform pair index, batch 2, 20 pairs, 4 queries, length 47. The query token copies that pair's key. CPU float32, one thread |
+| Eval mix | CALIB eval only. π_exact = 1, σ = 0. Every query token is its source key. The source is drawn from pairs still inside cap 8 when any exist, and that sequence is shared by all three cells. There is no noisy-query channel |
 | Seeds | CALIB only. Train 20250001–20250004, eval 20250005–20250008, disjoint. Init seed is the train seed and is shared across the three caps. TEST, HOLDOUT, and LM/MQAR `20300001–` were not read |
 
-One factor moved: ρ / `archive_cap`. No ρ×τ, ρ×β, or ρ×layout interaction. If a later round sees a main effect of ρ on the protocol's next-token CE, the next single factor is τ, and only after that β. That order is τ then β. It is not a license to open the grid now.
+One factor moved: ρ / `archive_cap`. No ρ×τ, ρ×β, or ρ×layout interaction. This round does not open τ. τ then β stay later, and only after a round where the hard gate is open and next-token CE is identifiable. That order is not a license to lower τ on this page.
 
 ## Horizon C
 
@@ -43,32 +44,47 @@ This round sets **C = 128 for the large cell only**. Base stays the Core point. 
 
 The caps increase: **8 < 32 < 96**. Large is 96, which is at least 64 and wider than the Core point. ρ = 0.75 is the large cell's fraction of C. Small and base are not fractions of this C (`fraction_of_C` is false on those rows; large stores ρ = 0.75).
 
-MQAR length is 47. Caps 8 and 32 are shorter than that prefix, so those rings evict (`ring_evicts` true). Cap 96 is wider than the prefix, so the large ring does not evict: every past position stays inside the band. `source_in_ring_rate` is 1 on every CALIB pair at cap 96. KiB still follows the nominal cap, because the byte rule counts `archive_cap` slots rather than the positions this length actually keeps.
+MQAR length is 47. Caps 8 and 32 are shorter than that prefix, so those rings evict (`ring_evicts` true). Cap 96 is wider than the prefix, so the large ring does not evict: every past position stays inside the band. KiB still follows the nominal cap, because the byte rule counts `archive_cap` slots rather than the positions this length actually keeps. The byte rule on this run is 480, 768, and 1536 KiB (state sizes 491520, 786432, and 1572864 bytes). That is the cap check. It is not a quality score.
 
-## The three points
+## Exact-key eval
 
-Means over the four CALIB pairs. Next-token CE is the full-sequence hard-eval loss, the same reduction as `a3_cpu_smoke.py`. Perplexity is `exp` of that mean. MSE is the mean, over MQAR answer positions, of `Σ_v (softmax(logit)_v − 1_{v = target})^2` on this cell's own logits. It is an internal Brier score, not the synthetic-face value MSE. `hit_rate` is this cell's own past-ring argmax: the fraction of query positions whose strictly earlier in-ring argmax token equals the query token, averaged over heads and layers. The current position is not counted; it is the query, not a retrieved write. `accepted_rate` is the mean over layers of that block's `acceptance_rate` (best in-ring cosine, including the current position, clears that block's τ). KiB is one sequence, six layers, float32 item size.
+The previous CALIB grid copied keys at a uniform pair index. Its `accepted_rate` was 0 on every cell, so a shared next-token CE could not be read as a ρ result.
 
-| Cell | Cap rule | archive_cap | next-token CE | MSE / ppl | hit_rate | accepted_rate | KiB |
-|---|---|---:|---:|---:|---:|---:|---:|
-| small | explicit 8, not 0.25×C | 8 | 9.063178777694702 | 0.999904990196228 / 8631.544853171987 | 0.020833333333333336 | 0 | 480 |
-| base | Core point | 32 | 9.063178777694702 | 0.999904990196228 / 8631.544853171987 | 0.016927083333333332 | 0 | 768 |
-| large | 0.75 of C=128 | 96 | 9.063178777694702 | 0.999904990196228 / 8631.544853171987 | 0.016927083333333332 | 0 | 1536 |
+This round keeps that train schedule and changes CALIB eval only.
 
-`logs/ablation_rho_calib.json` field `eval_ce_max_abs_diff_across_cells` is 0. The three CE figures are the same value, not a rounded tie. The same identity holds for the answer-position MSE. Sample sd of CE across the four pairs is about 0.0086 inside every cell. Per-pair rows are in the jsonl.
+* π_exact = 1 and σ = 0. The query token is the source key. No noise is added.
+* The source is chosen from pair keys whose distance to the query is strictly inside cap 8, when that set is non-empty. Cap 8 is the smallest ring, so a source inside it is inside cap 32 and cap 96 as well. The three cells therefore see one eval sequence per seed.
+* On this length the last query sits 8 steps after the final pair key. Cap 8's band is strict `< 8`, so that query has no in-ring source at the small cell. It still copies that nearest key (σ = 0). Caps 32 and 96 include distance 8.
 
-KiB is the byte rule at these caps: 480, 768, and 1536. It grows with `archive_cap` (small < base < large) and does not depend on the batch. State sizes are 491520, 786432, and 1572864 bytes.
+`source_in_ring_rate` on the four eval seeds is 0.75 at cap 8 and 1 at caps 32 and 96. The jsonl field `which` is the same three times inside each train/eval pair.
 
-`accepted_rate` is 0 on every layer and every pair. τ stayed near the 0.75 init (the jsonl `tau_mean` values sit within about 1e-4 of 0.75). The hard gate never opened, so the archive correction was multiplied by zero at eval. Under that schedule, `archive_cap` cannot move next-token CE. The match is that fact. It is not evidence that the rings are interchangeable once the gate opens, and it is not an LM measurement.
+## Critic health gate
 
-`hit_rate` does move between cap 8 and the wider rings. The means are 0.020833 (cap 8), 0.016927 (cap 32), and 0.016927 (cap 96). Sample sds (n = 4) are 0.015333, 0.0078125, and 0.008895. The cap-32 and cap-96 means are the same value; the four pairs are not the same series (jsonl `hit_rate`). The spread is on the same scale as the gap from cap 8. QKV is not in the AdamW group, so this rate is the frozen random projections plus the ring, not a trained retriever. Separately, the fraction of queries whose source key is still inside the ring — geometry, not the mask — is 0.125, 0.71875, and 1 at caps 8, 32, and 96. The large rate is 1 because no query-to-source distance on this length-47 batch reaches 96. Wider rings keep more source keys. They also keep more other positions. The argmax-hit mean did not rise from cap 32 to cap 96. That is a description of this CALIB run, not a choice of winner.
+Read this before next-token CE. The rule in the log is: each cell `accepted_rate` > 0, and the preferred bar is every CALIB eval seed > 0 and mean ≥ 0.05. `accepted_rate` is the mean over layers of that block's `acceptance_rate` (best in-ring cosine, including the current position, clears that block's τ).
 
-The soft-gate training loss does differ by cap inside a seed. Those two-step traces are `train_ce` in the jsonl. They are not the eval table.
+| Cell | archive_cap | accepted_rate | every eval seed > 0 | mean ≥ 0.05 | max best in-ring cosine | lowest τ |
+|---|---:|---:|---|---|---:|---:|
+| small | 8 | 0 | no | no | 0.5177628397941589 | 0.7497373819351196 |
+| base | 32 | 0 | no | no | 0.5728760361671448 | 0.7497373819351196 |
+| large | 96 | 0 | no | no | 0.5743206143379211 | 0.7497373819351196 |
+
+Every layer on every pair is 0 (`accepted_rate_per_layer` in the jsonl). The preferred bar fails with the cell bar. Per-seed rates are `[0, 0, 0, 0]` on each cell. τ was not lowered. The json `tau_mean` values sit within about 5e-5 of 0.75. The highest best-in-ring cosine on any of these forwards is the large-cell figure above, and it stays under the lowest τ.
+
+An exact token copy is not a cosine of 1. The block scores `cos(W_q h, W_k h)`. Those are different projections, and on this frozen QKV stack the best in-ring cosine stayed below τ, including at positions whose source key is still in the ring.
+
+## Label
+
+**UNIDENTIFIABLE.** The hard gate never opened, so the archive correction is multiplied by zero at eval and `archive_cap` cannot move the hard-eval readout through that correction. Next-token CE, hit, and the internal MSE are stored in the json (`ce_interpretable` is false). This page does not read them, and it does not call a match across cells a null effect of ρ.
+
+The follow-up in the log is `stopped_for_human_review`. τ stays 0.75. This run does not re-lock it and does not start another grid.
+
+Soft-gate train losses can still differ by cap. Those two-step traces are `train_ce` in the jsonl. They are not the eval result.
 
 ## Non-claims
 
 * No language-model efficacy. Two knob steps on a synthetic MQAR batch are not a trained layer.
 * No 「全面勝ち」. Hard stays SDA-Recency and iid / old-skew stay Expanded on the face table. This grid does not reopen that table.
-* No ρ×τ or ρ×β result. τ and β were not swept.
+* No ρ main effect, and no claim that ρ has no main effect. The gate was shut, so CE is unidentifiable.
+* No ρ×τ or ρ×β result. τ and β were not swept. τ was not re-locked after the exact-key mix.
 * TEST 20261023–20261038 and HOLDOUT 20270001–20270008 stay sealed. The LM band was not mixed into these pairs.
-* Do not read the shared CE as a quality score, and do not promote the hit-rate order into a selected cap.
+* Do not promote a cap from KiB, from `source_in_ring_rate`, or from the stored hit rate.

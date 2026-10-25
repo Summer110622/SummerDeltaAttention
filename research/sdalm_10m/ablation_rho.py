@@ -3,6 +3,16 @@
 One factor moves: ``archive_cap``. Layout, β, τ, the soft-train / hard-eval
 gate, and knobs-only AdamW stay at the A3 settings in ``a3_cpu_smoke.py`` and
 ``EVAL_PROTOCOL_JA.md``. The step count is fixed. Nothing early-stops.
+τ stays 0.75. This script does not re-lock it.
+
+Train batches are the ordinary MQAR schedule (uniform pair index). CALIB
+eval only uses the exact-key mix: ``pi_exact = 1``, ``sigma = 0``, and the
+source is inside the shared small cap when that ring still holds a pair key.
+The three cells share that eval sequence. TEST, HOLDOUT, and the LM band
+stay closed.
+
+The critic reads ``accepted_rate`` before next-token CE. A cell at 0 makes
+ρ unidentifiable. That is not a claim that the cap has no main effect.
 
 ``DESIGN.md`` and the protocol name a horizon ``C`` and do not assign it an
 integer. This round sets ``C = 128`` for the large cell only:
@@ -16,10 +26,11 @@ clipped down to the Core cap.
 Seeds are the CALIB band only, split into four disjoint train/eval pairs.
 TEST, HOLDOUT, and the LM/MQAR band ``20300001–`` are not read.
 
-The run records next-token cross-entropy plus the internal MSE, hit,
-accepted rate, and KiB the ρ table asks for. Exit 0 means the grid finished
-and the float16 gate still PASSed. It does not mean a trained layer works,
-and it is not a language-model result.
+The log stores next-token cross-entropy plus the internal MSE, hit,
+accepted rate, and KiB. The critic may leave CE unread. Exit 0 means the
+grid finished and the float16 gate still PASSed. It does not mean a trained
+layer works, it is not a language-model result, and a closed gate is not a
+null effect of ρ.
 
 Run from the repository root::
 
@@ -37,13 +48,13 @@ from pathlib import Path
 import torch
 
 try:
-    from .data_mqar import make_mqar_batch
+    from .data_mqar import make_mqar_batch, make_mqar_exact_key_batch
     from .gate_f16_dualwrite import CALIB_SEEDS as GATE_CALIB_SEEDS
     from .gate_f16_dualwrite import LM_BAND_START, main as gate_main
     from .model import SDALM, SDALMConfig, count_parameters
     from .sda_block import _unit, causal_band, recency_state_entries
 except ImportError:
-    from data_mqar import make_mqar_batch
+    from data_mqar import make_mqar_batch, make_mqar_exact_key_batch
     from gate_f16_dualwrite import CALIB_SEEDS as GATE_CALIB_SEEDS
     from gate_f16_dualwrite import LM_BAND_START, main as gate_main
     from model import SDALM, SDALMConfig, count_parameters
@@ -71,6 +82,13 @@ CORE_ARCHIVE_CAP = 32
 SMALL_ARCHIVE_CAP = 8
 BETA_INIT = 0.05
 TAU_INIT = 0.75
+# CALIB eval only. Not a CLI, and not applied to the train batch.
+EVAL_PI_EXACT = 1.0
+EVAL_SIGMA = 0.0
+# Shared across cells. A source inside this cap is inside every larger ring.
+# Using the cell cap here would change the eval tokens with ρ.
+EVAL_SOURCE_CAP = SMALL_ARCHIVE_CAP
+PREFER_ACCEPT_MEAN = 0.05
 LOG_DIR = Path(__file__).resolve().parent / "logs"
 JSONL_PATH = LOG_DIR / "ablation_rho_calib.jsonl"
 JSON_PATH = LOG_DIR / "ablation_rho_calib.json"
@@ -178,6 +196,12 @@ def _assert_seed_bands() -> None:
         raise AssertionError("CALIB overlaps the LM/MQAR band")
     if STEPS != 2 or BATCH_SIZE != 2 or N_PAIRS != 20 or N_QUERIES != 4:
         raise AssertionError("MQAR schedule drifted from a3_cpu_smoke")
+    if TAU_INIT != 0.75 or BETA_INIT != 0.05:
+        raise AssertionError("tau or beta init was re-locked")
+    if EVAL_PI_EXACT != 1.0 or EVAL_SIGMA != 0.0:
+        raise AssertionError("CALIB eval mix left pi_exact=1 and sigma=0")
+    if EVAL_SOURCE_CAP != SMALL_ARCHIVE_CAP or EVAL_SOURCE_CAP != 8:
+        raise AssertionError("eval source cap must stay the shared small cap 8")
 
 
 def _require_gate() -> dict:
@@ -206,8 +230,8 @@ def _reject_seed(seed: int) -> None:
         raise AssertionError(f"seed {seed} is not a CALIB input")
 
 
-def _load_batch(seed: int, vocab_size: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Protocol batch plus the key index ``which``, checked against ``make_mqar_batch``."""
+def _load_train_batch(seed: int, vocab_size: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Ordinary MQAR batch plus ``which``. Uniform pair index. Not the eval mix."""
     _reject_seed(seed)
     generator = torch.Generator(device="cpu")
     generator.manual_seed(seed)
@@ -239,6 +263,51 @@ def _load_batch(seed: int, vocab_size: int) -> tuple[torch.Tensor, torch.Tensor,
         raise AssertionError("query positions do not hold the sampled keys")
     if not torch.equal(targets[:, qpos], answer):
         raise AssertionError("answer positions do not hold the paired values")
+    return inputs, targets, which
+
+
+def _load_eval_batch(seed: int, vocab_size: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Exact-key CALIB eval batch. Same sequence for every archive cap."""
+    _reject_seed(seed)
+    if EVAL_PI_EXACT != 1.0 or EVAL_SIGMA != 0.0:
+        raise AssertionError("refusing to build a CALIB eval batch that is not pi_exact=1, sigma=0")
+    generator = torch.Generator(device="cpu")
+    generator.manual_seed(seed)
+    inputs, targets, which = make_mqar_exact_key_batch(
+        batch_size=BATCH_SIZE,
+        n_pairs=N_PAIRS,
+        n_queries=N_QUERIES,
+        vocab_size=vocab_size,
+        source_cap=EVAL_SOURCE_CAP,
+        pi_exact=EVAL_PI_EXACT,
+        sigma=EVAL_SIGMA,
+        generator=generator,
+    )
+    expected_time = 2 * N_PAIRS + 2 * N_QUERIES - 1
+    if inputs.shape != (BATCH_SIZE, expected_time) or which.shape != (BATCH_SIZE, N_QUERIES):
+        raise AssertionError("exact-key eval batch has the wrong shape")
+    qpos = _query_positions()
+    keys = inputs[:, 0:2 * N_PAIRS:2]
+    query = inputs[:, qpos]
+    source = torch.gather(keys, 1, which)
+    if not torch.equal(query, source):
+        raise AssertionError("eval query token is not the source key")
+    if targets[:, qpos].shape != query.shape:
+        raise AssertionError("eval answer positions do not match the queries")
+    distance = qpos.unsqueeze(0) - 2 * which
+    if not bool((distance > 0).all()):
+        raise AssertionError("eval query is not strictly after its source key")
+    # Queries that have a source inside the shared cap must use one. The last
+    # query on this length sits 8 steps after the final pair key, so cap 8
+    # has no in-ring source there; that row copies the nearest key instead.
+    for query_index in range(N_QUERIES):
+        q_distance = distance[:, query_index]
+        if query_index < N_QUERIES - 1:
+            if not bool((q_distance < EVAL_SOURCE_CAP).all()):
+                raise AssertionError("an earlier eval query left the shared small ring")
+        else:
+            if not bool((q_distance == 8).all()):
+                raise AssertionError("the last eval query is not the nearest key at distance 8")
     return inputs, targets, which
 
 
@@ -354,6 +423,21 @@ def _source_in_ring(which: torch.Tensor, archive_cap: int) -> float:
     return float(inside.to(dtype=torch.float32).mean())
 
 
+def _best_in_ring_cosine(block, hidden: torch.Tensor) -> float:
+    """Max cosine inside this block's ring, including the current position."""
+    if hidden.ndim != 3:
+        raise AssertionError("expected prenorm hidden (batch, time, d_model)")
+    batch, time, _ = hidden.shape
+    qkv = block.qkv(hidden).view(batch, time, 3, block.n_head, block.d_head)
+    query, key, _value = (tensor.permute(0, 2, 1, 3) for tensor in qkv.unbind(dim=2))
+    scores = torch.einsum("bhtd,bhsd->bhts", _unit(query), _unit(key))
+    valid = causal_band(time, block.archive_cap, hidden.device)
+    best = scores.masked_fill(~valid, -1e9).amax(dim=-1)
+    if not torch.isfinite(best).all():
+        raise AssertionError("in-ring cosine was non-finite")
+    return float(best.max())
+
+
 def _query_hit_rate(block, hidden: torch.Tensor, tokens: torch.Tensor) -> float:
     """Key-id hit from this block's past-ring argmax. Self is not a retrieval."""
     if hidden.ndim != 3:
@@ -403,6 +487,7 @@ def _evaluate(model: SDALM, inputs: torch.Tensor, targets: torch.Tensor,
     hidden = model.embed(inputs)
     hits: list[float] = []
     accepted: list[float] = []
+    cosines: list[float] = []
     for layer in model.layers:
         prenorm = layer.norm1(hidden)
         rate = layer.sda.acceptance_rate(prenorm)
@@ -413,6 +498,7 @@ def _evaluate(model: SDALM, inputs: torch.Tensor, targets: torch.Tensor,
             raise AssertionError("hit_rate out of range")
         accepted.append(rate)
         hits.append(hit)
+        cosines.append(_best_in_ring_cosine(layer.sda, prenorm))
         hidden = layer(hidden)
     logits = model.lm_head(model.norm(hidden))
     if not torch.isfinite(logits).all():
@@ -442,11 +528,15 @@ def _evaluate(model: SDALM, inputs: torch.Tensor, targets: torch.Tensor,
         "hit_rate_per_layer": hits,
         "accepted_rate": float(sum(accepted) / len(accepted)),
         "accepted_rate_per_layer": accepted,
+        "best_in_ring_cosine_max": float(max(cosines)),
+        "best_in_ring_cosine_max_per_layer": cosines,
         "source_in_ring_rate": _source_in_ring(which, model.config.archive_cap),
         "state_nbytes": nbytes,
         "kib": kib,
         "beta_mean": float(beta.mean()),
         "tau_mean": float(tau.mean()),
+        "tau_min": float(tau.min()),
+        "tau_max": float(tau.max()),
     }
 
 
@@ -464,6 +554,54 @@ def _sample_sd(values: list[float]) -> float:
     return float(math.sqrt(var))
 
 
+def _critic_health(summaries: list[dict]) -> dict:
+    """Decide whether next-token CE can be read. Uses acceptance only."""
+    cells = []
+    for row in summaries:
+        rates = [float(value) for value in row["per_seed_accepted_rate"]]
+        mean = float(row["accepted_rate"])
+        every = all(value > 0.0 for value in rates)
+        cosine_below = all(
+            float(cosine) < float(tau)
+            for cosine, tau in zip(row["per_seed_best_in_ring_cosine_max"], row["per_seed_tau_min"])
+        )
+        cells.append({
+            "cell": row["cell"],
+            "accepted_rate": mean,
+            "every_seed_positive": every,
+            "mean_at_least_floor": mean >= PREFER_ACCEPT_MEAN,
+            "cosine_below_tau_every_seed": cosine_below,
+            "per_seed_accepted_rate": rates,
+        })
+    each_positive = all(cell["accepted_rate"] > 0.0 for cell in cells)
+    prefer = all(cell["every_seed_positive"] and cell["mean_at_least_floor"] for cell in cells)
+    if not each_positive:
+        effect = "UNIDENTIFIABLE"
+        interpretable = False
+        follow = "stopped_for_human_review"
+    else:
+        effect = "exploratory_calib"
+        interpretable = True
+        follow = "ce_recorded" if prefer else "ce_recorded_prefer_gate_missed"
+    return {
+        "checked_before_ce": True,
+        "rule": (
+            "each cell accepted_rate > 0 before CE is read; prefer every CALIB eval "
+            "seed > 0 and mean >= 0.05. A zero cell is UNIDENTIFIABLE, not a null effect"
+        ),
+        "prefer_mean_floor": PREFER_ACCEPT_MEAN,
+        "cells": cells,
+        "each_cell_accepted_rate_positive": each_positive,
+        "prefer_gate": prefer,
+        "passed": each_positive and prefer,
+        "rho_effect": effect,
+        "ce_interpretable": interpretable,
+        "follow_up": follow,
+        "tau_relock": False,
+        "null_effect_claimed": False,
+    }
+
+
 def run() -> dict:
     _assert_seed_bands()
     torch.set_num_threads(1)
@@ -478,8 +616,8 @@ def run() -> dict:
     for train_seed, eval_seed in zip(TRAIN_SEEDS, EVAL_SEEDS):
         if train_seed == eval_seed:
             raise AssertionError("train and eval seeds must differ")
-        train_in, train_tg, _which_train = _load_batch(train_seed, 8000)
-        eval_in, eval_tg, which_eval = _load_batch(eval_seed, 8000)
+        train_in, train_tg, _which_train = _load_train_batch(train_seed, 8000)
+        eval_in, eval_tg, which_eval = _load_eval_batch(eval_seed, 8000)
         time = int(train_in.shape[1])
         if time != int(eval_in.shape[1]):
             raise AssertionError("train and eval batches differ in length")
@@ -516,6 +654,12 @@ def run() -> dict:
                 "C_applies_to": "large",
                 "train_seed": train_seed,
                 "eval_seed": eval_seed,
+                "train_query_mix": "uniform",
+                "eval_query_mix": "exact_key",
+                "eval_pi_exact": EVAL_PI_EXACT,
+                "eval_sigma": EVAL_SIGMA,
+                "eval_source_cap": EVAL_SOURCE_CAP,
+                "which": which_eval.tolist(),
                 "train_ce": train_ce,
                 "ppl": float(math.exp(metrics["eval_ce"])),
                 "param_count": count_parameters(model),
@@ -561,12 +705,16 @@ def run() -> dict:
             "hit_rate": _mean([row["hit_rate"] for row in group]),
             "hit_rate_sd": _sample_sd([row["hit_rate"] for row in group]),
             "accepted_rate": _mean([row["accepted_rate"] for row in group]),
+            "best_in_ring_cosine_max": max(row["best_in_ring_cosine_max"] for row in group),
+            "tau_min": min(row["tau_min"] for row in group),
             "source_in_ring_rate": _mean([row["source_in_ring_rate"] for row in group]),
             "kib": group[0]["kib"],
             "state_nbytes": group[0]["state_nbytes"],
             "per_seed_eval_ce": eval_ce,
             "per_seed_hit_rate": [row["hit_rate"] for row in group],
             "per_seed_accepted_rate": [row["accepted_rate"] for row in group],
+            "per_seed_best_in_ring_cosine_max": [row["best_in_ring_cosine_max"] for row in group],
+            "per_seed_tau_min": [row["tau_min"] for row in group],
             "per_seed_mse": [row["mse"] for row in group],
         })
     kibs = [row["kib"] for row in summaries]
@@ -579,6 +727,17 @@ def run() -> dict:
         raise AssertionError("eviction left the length-47 pattern: small and base evict, large does not")
     if any(row["seq_len"] != 47 for row in runs):
         raise AssertionError("MQAR length left 47; the large-cap eviction note would be stale")
+    for train_seed in TRAIN_SEEDS:
+        pair = [row for row in runs if row["train_seed"] == train_seed]
+        if len(pair) != 3:
+            raise AssertionError("a CALIB pair is missing a cell")
+        if any(row["which"] != pair[0]["which"] for row in pair):
+            raise AssertionError("eval which changed with archive_cap")
+        if any(row["eval_pi_exact"] != 1.0 or row["eval_sigma"] != 0.0 for row in pair):
+            raise AssertionError("eval mix drifted inside a pair")
+        if any(row["train_query_mix"] != "uniform" or row["eval_query_mix"] != "exact_key" for row in pair):
+            raise AssertionError("train and eval mixes were swapped")
+    health = _critic_health(summaries)
     ce_values = [row["next_token_ce"] for row in summaries]
     summary = {
         "result": "ofat_ok",
@@ -621,8 +780,21 @@ def run() -> dict:
         "archive_policy": "scaffold ring of the last archive_cap positions (continuous keys; not a second Recency-B implementation)",
         "beta_init": BETA_INIT,
         "tau_init": TAU_INIT,
+        "tau_relock": False,
         "train_gate": "soft",
         "eval_gate": "hard",
+        "train_query_mix": "uniform",
+        "eval_query_mix": "exact_key",
+        "eval_pi_exact": EVAL_PI_EXACT,
+        "eval_sigma": EVAL_SIGMA,
+        "eval_source_cap": EVAL_SOURCE_CAP,
+        "eval_mix_note": (
+            "Train which is uniform over the 20 pairs. CALIB eval which is exact-key: "
+            "pi_exact=1, sigma=0, query token equals the source key. Sources are drawn "
+            "from pairs inside cap 8 when any exist, and that sequence is shared by "
+            "all three cells. The last query is 8 steps after the final pair key, so "
+            "cap 8 does not hold it; caps 32 and 96 do. Tau stays 0.75."
+        ),
         "adamw": "sda_knobs_only",
         "steps": STEPS,
         "early_stop": False,
@@ -649,8 +821,22 @@ def run() -> dict:
                 "fraction of MQAR queries whose source key position is still inside the past ring; "
                 "geometry of the batch, not a retrieval mask"
             ),
+            "best_in_ring_cosine_max": (
+                "max over layers, heads, and positions of the best in-ring cosine on that "
+                "eval batch, including the current position. Diagnostic for the hard gate. "
+                "Not a second accepted_rate"
+            ),
         },
+        "critic_health": health,
+        "rho_effect": health["rho_effect"],
+        "ce_interpretable": health["ce_interpretable"],
+        "null_effect_claimed": False,
+        "follow_up": health["follow_up"],
         "eval_ce_max_abs_diff_across_cells": float(max(ce_values) - min(ce_values)),
+        "eval_ce_note": (
+            "stored with the grid. Readable as a rho measurement only when ce_interpretable "
+            "is true. A shared CE with accepted_rate 0 is UNIDENTIFIABLE, not a null effect"
+        ),
         "cells": summaries,
         "command": "python research/sdalm_10m/ablation_rho.py",
     }
@@ -684,6 +870,30 @@ def _write(payload: dict) -> None:
         raise AssertionError("non-claims were dropped")
     if summary["claim"] != "calib_ofat_only":
         raise AssertionError("claim left calib_ofat_only")
+    if summary["eval_pi_exact"] != 1.0 or summary["eval_sigma"] != 0.0:
+        raise AssertionError("logged eval mix is not pi_exact=1, sigma=0")
+    if summary["eval_source_cap"] != 8 or summary["train_query_mix"] != "uniform":
+        raise AssertionError("logged mixes left the locked train/eval split")
+    if summary["eval_query_mix"] != "exact_key":
+        raise AssertionError("eval mix was not exact_key")
+    if summary["tau_relock"] is not False or summary["tau_init"] != 0.75:
+        raise AssertionError("tau was re-locked")
+    if summary["null_effect_claimed"] is not False:
+        raise AssertionError("a null rho effect was claimed")
+    health = summary["critic_health"]
+    if health["checked_before_ce"] is not True or health["tau_relock"] is not False:
+        raise AssertionError("critic health gate was not applied before CE")
+    if health["null_effect_claimed"] is not False:
+        raise AssertionError("health gate claimed a null effect")
+    if health["rho_effect"] != summary["rho_effect"] or health["ce_interpretable"] != summary["ce_interpretable"]:
+        raise AssertionError("summary label drifted from the health gate")
+    if not health["each_cell_accepted_rate_positive"]:
+        if summary["rho_effect"] != "UNIDENTIFIABLE" or summary["ce_interpretable"] is not False:
+            raise AssertionError("a closed gate was labeled as a rho result")
+        if summary["follow_up"] != "stopped_for_human_review":
+            raise AssertionError("closed gate did not stop for human review")
+    elif summary["ce_interpretable"] is not True or summary["rho_effect"] != "exploratory_calib":
+        raise AssertionError("an open gate was labeled unidentifiable")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -703,7 +913,19 @@ def main(argv: list[str] | None = None) -> None:
         + " seeds_eval=" + ",".join(str(seed) for seed in summary["eval_seeds"])
     )
     print("gate=PASS adamw_group=sda_knobs_only variant=sda_recency")
-    print("archive_cap=8,32,96 monotonic=true C_applies_to=large small=fixed-8")
+    print(
+        "archive_cap=8,32,96 monotonic=true C_applies_to=large small=fixed-8 "
+        "eval_pi_exact=1 eval_sigma=0 train_query_mix=uniform tau_relock=false"
+    )
+    health = summary["critic_health"]
+    print(
+        "critic_health "
+        f"each_cell_positive={str(health['each_cell_accepted_rate_positive']).lower()} "
+        f"prefer_gate={str(health['prefer_gate']).lower()} "
+        f"rho_effect={summary['rho_effect']} "
+        f"ce_interpretable={str(summary['ce_interpretable']).lower()} "
+        f"null_effect_claimed=false follow_up={summary['follow_up']}"
+    )
     for row in summary["cells"]:
         if row["cell"] == "large":
             rho = f"{float(row['rho']):.2f}"
@@ -713,10 +935,18 @@ def main(argv: list[str] | None = None) -> None:
             rho = "fixed-8"
         print(
             f"cell={row['cell']} rho={rho} archive_cap={row['archive_cap']} "
-            f"ce={row['next_token_ce']:.6f} ppl={row['ppl']:.4f} "
-            f"mse={row['mse']:.6f} hit_rate={row['hit_rate']:.6f} "
-            f"accepted_rate={row['accepted_rate']:.6f} kib={row['kib']:.4f}"
+            f"accepted_rate={row['accepted_rate']:.6f} "
+            f"best_cosine_max={row['best_in_ring_cosine_max']:.6f} "
+            f"tau_min={row['tau_min']:.6f} "
+            f"source_in_ring_rate={row['source_in_ring_rate']:.6f} kib={row['kib']:.4f}"
         )
+        if summary["ce_interpretable"]:
+            print(
+                f"cell={row['cell']} ce={row['next_token_ce']:.6f} ppl={row['ppl']:.4f} "
+                f"mse={row['mse']:.6f} hit_rate={row['hit_rate']:.6f}"
+            )
+    if not summary["ce_interpretable"]:
+        print("ce_not_reported reason=accepted_rate_zero rho_effect=UNIDENTIFIABLE")
     print("log=research/sdalm_10m/logs/ablation_rho_calib.json")
     print("jsonl=research/sdalm_10m/logs/ablation_rho_calib.jsonl")
     print("ofat_ok=true claim=calib_ofat_only")
