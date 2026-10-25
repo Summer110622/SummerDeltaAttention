@@ -83,7 +83,7 @@ Bytes are `entries * dtype.itemsize` via `torch.empty((), dtype=dtype).element_s
 
 ## Archive ρ later
 
-The OFAT plan is [`ABLATION_RHO.md`](ABLATION_RHO.md). It is not a run. ρ ∈ {small ≈ 0.25, base = archive_cap 32, large ≈ 0.75 or the Core cap}. β stays 0.05, the gate stays soft in train and hard in eval, and the archive stays Recency-B. τ then β are touched only after ρ shows a main effect. The table stays empty until `gate_f16_dualwrite.py` exits 0.
+The OFAT plan is [`ABLATION_RHO.md`](ABLATION_RHO.md). It is not a run. ρ ∈ {small ≈ 0.25, base = archive_cap 32, large ≈ 0.75 or the Core cap}. β stays 0.05, the gate stays soft in train and hard in eval, and the archive stays Recency-B. τ then β are touched only after ρ shows a main effect. The f16 gate PASS is recorded in `logs/gate_f16_dualwrite_calib.json`. The ρ table stays empty; this round does not run those cells.
 
 ## Parameter count
 
@@ -103,10 +103,9 @@ Expanded drops τ and the temperature (`6 × 4 × 2 = 48`) and adds no lift para
 
 Context only. No number from these papers is a result of this repository, and this code does not implement their kernels.
 
-* Schlag, Irie, Schmidhuber (2021). Linear Transformers Are Secretly Fast Weight Programmers. ICML. (delta rule / DeltaNet)
-* Yang, Wang, Zhang, Shen, Kim (2024). Parallelizing Linear Transformers with the Delta Rule over Sequence Length. NeurIPS. arXiv:2406.06484. (parallel DeltaNet)
-* Yang, Kautz, Hatamizadeh (2025). Gated Delta Networks: Improving Mamba2 with Delta Rule. ICLR. arXiv:2412.06464. (Gated DeltaNet)
-* Kimi Team (2025). Kimi Linear: An Expressive, Efficient Attention Architecture. arXiv:2510.26692. (Kimi Delta Attention / KDA)
+* **DeltaNet** — no-decay delta direct baseline; no external KV archive and no confidence gate. (Schlag, Irie, Schmidhuber, ICML 2021; parallel form: Yang, Wang, Zhang, Shen, Kim, NeurIPS 2024, arXiv:2406.06484.)
+* **Gated DeltaNet** — decay gate α; the opposite of SDA's no-decay update. (Yang, Kautz, Hatamizadeh, ICLR 2025, arXiv:2412.06464.)
+* **Kimi Linear / KDA** — channel-decay Gated Delta plus an MLA hybrid; no archive. (Kimi Team, 2025, arXiv:2510.26692.)
 
 ## Limitations
 

@@ -264,6 +264,18 @@ class SDABlock(nn.Module):
         entries = batch * self.n_head * self.rule_state_entries_per_head()
         return nbytes_for_entries(entries, dtype)
 
+    def state_nbytes(self, batch: int, time: int, dtype: torch.dtype) -> int:
+        """Per-step rule bytes. ``time`` is accepted so every mixer shares the call."""
+        if time < 1:
+            raise ValueError("time must be positive")
+        return self.rule_state_nbytes(batch, dtype)
+
+    @property
+    def state_kind(self) -> str:
+        if self.variant == "recency":
+            return "delta_plus_recency_ring"
+        return "expanded_delta"
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if x.ndim != 3:
             raise ValueError(f"expected (batch, time, d_model), got {tuple(x.shape)}")

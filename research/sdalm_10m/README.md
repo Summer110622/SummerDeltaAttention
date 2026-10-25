@@ -23,7 +23,9 @@ python research/sdalm_10m/train_smoke.py
 
 `train_smoke.py` uses seed 0, CPU, and four AdamW steps on one fixed synthetic MQAR batch. AdamW updates only `beta_logit`, `tau_logit`, and `gate_log_temp`. Other parameters keep gradients for the finite-grad check and are not in the optimizer. The script also checks the frozen parameter count, that the vectorized delta scan matches a sequential reference, and that acceptance is defined only on the recency block. The loss lines are that smoke. They are not an evaluation.
 
-`python research/sdalm_10m/gate_f16_dualwrite.py` compares a float64 reference with a float16 dual-write on synthetic KV from CALIB seeds 20250001–20250008 only. Exit 0 is PASS. It does not read LM batches from 20300001 onward. The ρ table is not a run; it waits on that gate.
+`python research/sdalm_10m/gate_f16_dualwrite.py` compares a float64 reference with a float16 dual-write on synthetic KV from CALIB seeds 20250001–20250008 only. Exit 0 is PASS. It does not read LM batches from 20300001 onward. The committed CALIB pass is `logs/gate_f16_dualwrite_calib.json`. The ρ table is still not a run.
+
+`python research/sdalm_10m/a3_cpu_smoke.py` is the A3 CPU smoke from `EVAL_PROTOCOL_JA.md`. It trains SDA-Recency with the soft gate and evaluates with the hard gate. AdamW updates only the three SDA knobs. The other two mixers are same-shape causal softmax attention and no-decay delta (no archive, not Expanded). Seeds are 20300001 and 20300002. The step count is fixed. Cross-entropy stays in `logs/a3_cpu_smoke.jsonl`.
 
 ```bash
 python research/sdalm_10m/train_smoke.py --variant expanded
@@ -37,11 +39,12 @@ The batch in `data_mqar.py` is random integer ids. No corpus is downloaded. The 
 ## Limitations
 
 * No claim that the model, or any trained layer, is effective at language modeling. Not TinyStories. Not a SOTA result.
-* Not equal to full attention. The stack has no softmax attention baseline.
+* Not equal to full attention. `a3_cpu_smoke.py` also runs same-shape softmax attention and no-decay delta. That is a CPU smoke. Its cross-entropy stays in `logs/a3_cpu_smoke.jsonl`.
 * No universal equal-memory kernel. Hard-face Recency is not the overall best: hard → SDA-Recency, iid and old-skew → Expanded. Hybrid-RF, Cond2, and H′ stay No-go.
 * Recency and Expanded are two configs. The forward does not mix the ring with the widened state.
 * Do not use the phrases 「有望な中間」 or 「全面勝ち」 for this stack.
 * Do not cite the repository's older SDA-vs-proxy table as a win over KDA. That comparison is unequal memory, and the proxy is not Kimi Linear.
 * No `fla`, and no Kimi Delta Attention dependency. Papers a later comparison would cite (DeltaNet, Gated DeltaNet, Kimi Linear / KDA) are listed in DESIGN.md. Their numbers are not results of this scaffold.
 * `accepted_rate` is recency-only, from that block's own scores. Expanded does not get a copied rate. This scaffold does not emit `hit_rate`.
-* The loss lines from `train_smoke.py` stay out of papers, the repo-root README, and `RESEARCH_STATUS.md`.
+* The loss lines from `train_smoke.py`, and the cross-entropy in `logs/a3_cpu_smoke.jsonl`, stay out of papers, the repo-root README, and `RESEARCH_STATUS.md`.
+* Archive ρ is still not run. The f16 gate pass does not start that table.

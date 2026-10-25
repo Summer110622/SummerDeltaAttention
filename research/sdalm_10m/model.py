@@ -18,9 +18,14 @@ import torch
 from torch import nn
 
 try:
+    from .baselines import NoDecayDelta, SoftmaxAttention
     from .sda_block import SDABlock, VARIANTS
 except ImportError:
+    from baselines import NoDecayDelta, SoftmaxAttention
     from sda_block import SDABlock, VARIANTS
+
+
+MIXERS = ("sda", "softmax", "delta")
 
 
 @dataclass(frozen=True)
@@ -31,6 +36,9 @@ class SDALMConfig:
     archive off and widens the delta state. ``expand_factor`` is only legal
     for ``expanded``. Archive ρ is not a field: a later ablation may vary the
     ring, and this config does not invent small/large caps.
+
+    ``mixer`` selects the block. ``sda`` is the default. ``softmax`` and
+    ``delta`` are the A3 baselines at this same shape. They are not Expanded.
     """
 
     vocab_size: int = 8000
@@ -39,6 +47,7 @@ class SDALMConfig:
     n_head: int = 4
     d_ff: int = 1024
     archive_cap: int = 32
+    mixer: str = "sda"
     variant: str = "recency"
     expand_factor: int | None = None
     max_seq_len: int = 128
@@ -49,6 +58,15 @@ class SDALMConfig:
     hard_gate_eval: bool = False
 
     def __post_init__(self) -> None:
+        if self.mixer not in MIXERS:
+            raise ValueError(f"mixer must be one of {MIXERS}, got {self.mixer!r}")
+        if self.mixer != "sda":
+            if self.variant != "recency":
+                raise ValueError("softmax and no-decay delta are not the expanded variant")
+            if self.expand_factor is not None:
+                raise ValueError("expand_factor is only valid when variant='expanded'")
+            if self.hard_gate_eval:
+                raise ValueError("hard_gate_eval applies only to the SDA mixer")
         if self.variant not in VARIANTS:
             raise ValueError(f"variant must be one of {VARIANTS}, got {self.variant!r}")
         if self.vocab_size < 2:
@@ -99,22 +117,39 @@ class Block(nn.Module):
     def __init__(self, config: SDALMConfig) -> None:
         super().__init__()
         self.norm1 = RMSNorm(config.d_model)
-        self.sda = SDABlock(
-            config.d_model, config.n_head, config.archive_cap, config.variant,
-            config.beta_init, config.tau_init, config.gate_temp_init,
-            config.expand_factor, config.hard_gate_eval,
-        )
+        if config.mixer == "sda":
+            self.sda = SDABlock(
+                config.d_model, config.n_head, config.archive_cap, config.variant,
+                config.beta_init, config.tau_init, config.gate_temp_init,
+                config.expand_factor, config.hard_gate_eval,
+            )
+        elif config.mixer == "softmax":
+            self.attn = SoftmaxAttention(config.d_model, config.n_head)
+        else:
+            self.delta = NoDecayDelta(config.d_model, config.n_head, beta=config.beta_init)
         self.norm2 = RMSNorm(config.d_model)
         self.ffn = FeedForward(config.d_model, config.d_ff)
 
+    @property
+    def mixer(self) -> nn.Module:
+        if hasattr(self, "sda"):
+            return self.sda
+        if hasattr(self, "attn"):
+            return self.attn
+        return self.delta
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.sda(self.norm1(x))
+        x = x + self.mixer(self.norm1(x))
         x = x + self.ffn(self.norm2(x))
         return x
 
 
 class SDALM(nn.Module):
-    """Pre-norm causal stack. The mixer is an SDA block, not softmax attention."""
+    """Pre-norm causal stack. The default mixer is an SDA block.
+
+    ``mixer="softmax"`` and ``mixer="delta"`` are same-shape baselines.
+    They are not Expanded and not a third hybrid.
+    """
 
     def __init__(self, config: SDALMConfig | None = None) -> None:
         super().__init__()
@@ -136,13 +171,24 @@ class SDALM(nn.Module):
                 nn.init.normal_(module.weight, mean=0.0, std=0.02)
         residual_std = 0.02 / math.sqrt(2 * self.config.n_layer)
         for layer in self.layers:
-            nn.init.normal_(layer.sda.out_proj.weight, mean=0.0, std=residual_std)
+            nn.init.normal_(layer.mixer.out_proj.weight, mean=0.0, std=residual_std)
             nn.init.normal_(layer.ffn.fc2.weight, mean=0.0, std=residual_std)
 
     def rule_state_nbytes(self, batch: int) -> int:
-        """Sum of per-layer per-step state bytes at the parameter dtype."""
+        """Sum of per-layer per-step SDA state bytes at the parameter dtype."""
+        if self.config.mixer != "sda":
+            raise ValueError("rule_state_nbytes is the SDA per-step state")
         dtype = self.embed.weight.dtype
         return sum(layer.sda.rule_state_nbytes(batch, dtype) for layer in self.layers)
+
+    def logged_state_nbytes(self, batch: int, time: int) -> int:
+        """Bytes of this mixer's own state at the parameter dtype.
+
+        Recency includes the ring. No-decay delta does not. Softmax counts K
+        and V for ``time``. The three figures are not forced to match.
+        """
+        dtype = self.embed.weight.dtype
+        return sum(layer.mixer.state_nbytes(batch, time, dtype) for layer in self.layers)
 
     def forward(self, tokens: torch.Tensor) -> torch.Tensor:
         if tokens.ndim != 2:

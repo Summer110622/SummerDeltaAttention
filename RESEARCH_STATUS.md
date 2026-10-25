@@ -64,14 +64,14 @@ C（公開用整理）完了（GitHub `v2` / PR #7）。**Path A（LM/学習）�
 ### A 今週タスク（Roadmap 確定・依存 A1→A2→A3）
 1. **A1 差し込み設計（CPU境界）** — Transformer1層・学習可能は β/τ/gate のみ。面別2系統（SDA-Recency / Expanded）並記。
 2. **A2 最小学習ループ（CPU・PyTorch）** — 1バッチ再現＋全パラメータ勾配有限。性能比較は出さない。
-3. **A3 評価プロトコル草案＋CPUスモーク** — softmax MHA / no-decay Delta、seed・漏洩防止。GPU・TinyStories・fla はプロトコル＋Safety後。
+3. **A3 評価プロトコル＋CPUスモーク** — 正本 `research/sdalm_10m/EVAL_PROTOCOL_JA.md`。CPU スモークは `a3_cpu_smoke.py`（同形状の softmax MHA と無減衰 Delta、LM 帯シード、TEST は早期停止に使わない）。数値は内部ログのみ。GPU・TinyStories・fla はまだ開かない。
 A3完了まで README/論文に学習数値を書かない。
 
 ### Path A note — SDALM-10M 足場（枝 `sdalm-10m`）
 
 枝 `sdalm-10m` に CPU・PyTorch の因果 LM 足場 `research/sdalm_10m/` がある。Core A1 で凍結した形状は **d_model=256, L=6, H=4, d_ff=1024, V=8000**。既定は **SDA-Recency**（学習は軟ゲート。硬ゲートは eval 切替のみ）。Expanded は `variant="expanded"` であり既定ではない。二つを混ぜた万能核にはしない。SDA 側で学習するのは β、τ、ゲート温度だけ（ほかは通常の埋め込み・射影・FFN）。archive ρ ∈ {small, base, large} は後続アブレーションであり、この足場では回さない。
 
-パラメータ数は `python research/sdalm_10m/model.py` が印字する。`train_smoke.py` は固定 seed の CPU 数ステップで、有限勾配とスモーク損失の軌跡だけを見る。**学習済み層の有効性も LM 性能も主張しない。** hard 面の最良は全体最良ではない（hard = SDA-Recency、iid / old-skew = Expanded）。等メモリの万能核は未達。fla / Kimi Linear / KDA には依存しない。旧 README の不均等メモリ KDA 代理比較を勝ちとして引用しない。状態バイト数は dtype の item size で数え、`accepted_rate` は Recency 自身のスコアだけから出す（Expanded へ写さない。`hit_rate` は出さない）。設計は `research/sdalm_10m/DESIGN.md`。A3 の正本は `research/sdalm_10m/EVAL_PROTOCOL_JA.md`（英語ファイルはポインタ）。ρ の OFAT 表は `research/sdalm_10m/ABLATION_RHO.md` にあり、f16 dual-write ゲート（`gate_f16_dualwrite.py`、判定は CALIB 20250001–08 の合成 KV のみ）が PASS するまで未実施。A2/A3 スモークの AdamW は β/τ/ゲート温度だけを更新する。
+パラメータ数は `python research/sdalm_10m/model.py` が印字する。`train_smoke.py` は固定 seed の CPU 数ステップで、有限勾配とスモーク損失の軌跡だけを見る。**学習済み層の有効性も LM 性能も主張しない。** hard 面の最良は全体最良ではない（hard = SDA-Recency、iid / old-skew = Expanded）。等メモリの万能核は未達。fla / Kimi Linear / KDA には依存しない。旧 README の不均等メモリ KDA 代理比較を勝ちとして引用しない。状態バイト数は dtype の item size で数え、`accepted_rate` は Recency 自身のスコアだけから出す（Expanded へ写さない。`hit_rate` は出さない）。設計は `research/sdalm_10m/DESIGN.md`。A3 の正本は `research/sdalm_10m/EVAL_PROTOCOL_JA.md`（英語ファイルはポインタ）。ρ の OFAT 表は `research/sdalm_10m/ABLATION_RHO.md` にあり、未実施のままである。f16 dual-write ゲートの CALIB PASS（exit 0）は `research/sdalm_10m/logs/gate_f16_dualwrite_calib.json` に記録した。このラウンドでは ρ は走らせない。A3 の CPU スモークは `research/sdalm_10m/a3_cpu_smoke.py`。CE はその内部ログだけに置き、ここには写さない。A2/A3 スモークの AdamW は β/τ/ゲート温度だけを更新する。ベースラインは同形状の softmax と無減衰 Delta（アーカイブなし）であり、Expanded ではない。
 
 ## 未コミット成果物の扱い
 
