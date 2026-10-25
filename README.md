@@ -22,11 +22,11 @@ Non-claims, carried over from the limitations note:
 - Do not use 「有望な中間」, 「全面勝ち」, 「万能SOTA」, or 「KDAに勝った」 as claims about this work.
 - The figures and the table **below** are an older unequal-memory proxy study (about 100 KiB vs 4 KiB). They are not the front claim and they are not a win over Kimi Linear or KDA.
 
-## Related linear attention (citations only)
+## Related linear attention
 
-- **DeltaNet** — delta-rule fast weights (Schlag, Irie, Schmidhuber, ICML 2021) and the parallel sequence algorithm (Yang, Wang, Zhang, Shen, Kim, NeurIPS 2024, arXiv:2406.06484).
-- **Gated DeltaNet** — Yang, Kautz, Hatamizadeh, ICLR 2025, arXiv:2412.06464.
-- **Kimi Linear / KDA** — Kimi Team, 2025, arXiv:2510.26692. This repository does not depend on that kernel. The 4 KiB channel-decay proxy later on this page is not Kimi Linear.
+- **DeltaNet** — no-decay delta direct baseline; no external KV archive and no confidence gate. (Schlag, Irie, Schmidhuber, ICML 2021; parallel form: Yang, Wang, Zhang, Shen, Kim, NeurIPS 2024, arXiv:2406.06484.)
+- **Gated DeltaNet** — decay gate α; the opposite of SDA's no-decay update. (Yang, Kautz, Hatamizadeh, ICLR 2025, arXiv:2412.06464.)
+- **Kimi Linear / KDA** — channel-decay Gated Delta plus an MLA hybrid; no archive. (Kimi Team, 2025, arXiv:2510.26692.) This repository does not depend on that kernel. The 4 KiB channel-decay proxy later on this page is not Kimi Linear.
 
 ## Algorithm
 
