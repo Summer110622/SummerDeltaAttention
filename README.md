@@ -1,7 +1,7 @@
 # Summer Delta Attention (SDA)
 
 **Author: summer** · MIT License · research reference / unreviewed manuscript
-
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23613123.svg)](https://doi.org/10.5281/zenodo.23613123)
 Summer Delta Attention v5-Gated (SDA-5) combines a **no-decay delta-rule fast-weight state** with a **bounded archive of original key/value pairs** and a **confidence-gated residual correction**. This repository is an educational research prototype, not a pretrained LLM or optimized linear-attention kernel.
 
 ## Algorithm
