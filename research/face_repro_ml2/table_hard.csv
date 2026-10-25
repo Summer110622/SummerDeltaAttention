@@ -1,0 +1,2 @@
+face,N,B,winner,mse_winner,mse_expanded,delta_exp_minus_winner,ci_lo,ci_hi,memory_kib,source
+hard,2048,1024,SDA-Recency,0.575044347690955,0.6857663730473017,0.11072202535634673,0.0708521456820091,0.15059190503068437,388.0,eqmem_hard_v2

@@ -1,0 +1,102 @@
+done 512 128 0.4
+done 512 256 0.7
+done 2048 128 0.2
+done 2048 256 0.2
+   N   B  noise                     method  mean_mse  mse_inB  mse_outB  frac_outB  memory_kib  hit_rate  accept    sem
+ 512 128    0.0 Expanded DeltaNet (eq-mem)    0.5940   0.4623    0.6445     0.7256        52.0       NaN     NaN 0.0064
+ 512 128    0.0     Indexed KV (recency B)    0.7097   0.0000    0.9791     0.7256        48.0    0.2744  0.2744 0.0105
+ 512 128    0.0     Indexed KV (uniform B)    0.7472   0.0000    0.9814     0.7617        48.0    0.2383  0.2383 0.0086
+ 512 128    0.0          No-decay DeltaNet    0.9301   0.9096    0.9383     0.7256         4.0       NaN     NaN 0.0098
+ 512 128    0.0            SDA (recency B)    0.6802   0.0000    0.9383     0.7256        52.0    0.2744  0.2744 0.0104
+ 512 128    0.0            SDA (uniform B)    0.7098   0.0000    0.9324     0.7617        52.0    0.2383  0.2383 0.0085
+ 512 128    0.0                       Zero    0.9786   0.9788    0.9791     0.7256         0.0       NaN     NaN 0.0098
+ 512 128    0.4 Expanded DeltaNet (eq-mem)    0.7782   0.6732    0.8172     0.7256        52.0       NaN     NaN 0.0094
+ 512 128    0.4     Indexed KV (recency B)    0.7097   0.0000    0.9791     0.7256        48.0    0.2744  0.2744 0.0105
+ 512 128    0.4     Indexed KV (uniform B)    0.7472   0.0000    0.9814     0.7617        48.0    0.2383  0.2383 0.0086
+ 512 128    0.4          No-decay DeltaNet    0.9342   0.9156    0.9416     0.7256         4.0       NaN     NaN 0.0097
+ 512 128    0.4            SDA (recency B)    0.6833   0.0027    0.9416     0.7256        52.0    0.2744  0.2744 0.0103
+ 512 128    0.4            SDA (uniform B)    0.7137   0.0028    0.9366     0.7617        52.0    0.2383  0.2383 0.0084
+ 512 128    0.4                       Zero    0.9786   0.9788    0.9791     0.7256         0.0       NaN     NaN 0.0098
+ 512 256    0.0 Expanded DeltaNet (eq-mem)    0.4146   0.2824    0.5618     0.4771       100.0       NaN     NaN 0.0063
+ 512 256    0.0     Indexed KV (recency B)    0.4606   0.0000    0.9669     0.4771        96.0    0.5229  0.5229 0.0123
+ 512 256    0.0     Indexed KV (uniform B)    0.4962   0.0000    0.9876     0.5029        96.0    0.4971  0.4971 0.0101
+ 512 256    0.0          No-decay DeltaNet    0.9301   0.9274    0.9346     0.4771         4.0       NaN     NaN 0.0098
+ 512 256    0.0            SDA (recency B)    0.4452   0.0000    0.9346     0.4771       100.0    0.5229  0.5229 0.0119
+ 512 256    0.0            SDA (uniform B)    0.4721   0.0000    0.9396     0.5029       100.0    0.4971  0.4971 0.0099
+ 512 256    0.0                       Zero    0.9786   0.9906    0.9669     0.4771         0.0       NaN     NaN 0.0098
+ 512 256    0.4 Expanded DeltaNet (eq-mem)    0.7664   0.6894    0.8569     0.4771       100.0       NaN     NaN 0.0128
+ 512 256    0.4     Indexed KV (recency B)    0.4606   0.0000    0.9669     0.4771        96.0    0.5229  0.5229 0.0123
+ 512 256    0.4     Indexed KV (uniform B)    0.4964   0.0000    0.9880     0.5029        96.0    0.4971  0.4976 0.0101
+ 512 256    0.4          No-decay DeltaNet    0.9342   0.9332    0.9369     0.4771         4.0       NaN     NaN 0.0097
+ 512 256    0.4            SDA (recency B)    0.4477   0.0027    0.9369     0.4771       100.0    0.5229  0.5229 0.0119
+ 512 256    0.4            SDA (uniform B)    0.4757   0.0028    0.9439     0.5029       100.0    0.4971  0.4976 0.0097
+ 512 256    0.4                       Zero    0.9786   0.9906    0.9669     0.4771         0.0       NaN     NaN 0.0098
+2048 128    0.0 Expanded DeltaNet (eq-mem)    0.8810   0.7362    0.8891     0.9448        52.0       NaN     NaN 0.0072
+2048 128    0.0     Indexed KV (recency B)    0.9582   0.0000    1.0143     0.9448        48.0    0.0552  0.0552 0.0102
+2048 128    0.0     Indexed KV (uniform B)    0.9615   0.0000    1.0163     0.9463        48.0    0.0537  0.0537 0.0083
+2048 128    0.0          No-decay DeltaNet    1.0095   0.9623    1.0121     0.9448         4.0       NaN     NaN 0.0080
+2048 128    0.0            SDA (recency B)    0.9561   0.0000    1.0121     0.9448        52.0    0.0552  0.0552 0.0094
+2048 128    0.0            SDA (uniform B)    0.9549   0.0000    1.0093     0.9463        52.0    0.0537  0.0537 0.0075
+2048 128    0.0                       Zero    1.0161   1.0468    1.0143     0.9448         0.0       NaN     NaN 0.0089
+2048 128    0.4 Expanded DeltaNet (eq-mem)    0.9622   0.8918    0.9653     0.9448        52.0       NaN     NaN 0.0085
+2048 128    0.4     Indexed KV (recency B)    0.9582   0.0000    1.0143     0.9448        48.0    0.0552  0.0552 0.0102
+2048 128    0.4     Indexed KV (uniform B)    0.9615   0.0000    1.0163     0.9463        48.0    0.0537  0.0537 0.0083
+2048 128    0.4          No-decay DeltaNet    1.0114   0.9755    1.0132     0.9448         4.0       NaN     NaN 0.0081
+2048 128    0.4            SDA (recency B)    0.9574   0.0036    1.0132     0.9448        52.0    0.0552  0.0552 0.0096
+2048 128    0.4            SDA (uniform B)    0.9569   0.0038    1.0112     0.9463        52.0    0.0537  0.0537 0.0076
+2048 128    0.4                       Zero    1.0161   1.0468    1.0143     0.9448         0.0       NaN     NaN 0.0089
+2048 256    0.0 Expanded DeltaNet (eq-mem)    0.8120   0.7520    0.8207     0.8799       100.0       NaN     NaN 0.0064
+2048 256    0.0     Indexed KV (recency B)    0.8911   0.0000    1.0128     0.8799        96.0    0.1201  0.1201 0.0104
+2048 256    0.0     Indexed KV (uniform B)    0.8922   0.0000    1.0133     0.8804        96.0    0.1196  0.1196 0.0119
+2048 256    0.0          No-decay DeltaNet    1.0095   0.9708    1.0147     0.8799         4.0       NaN     NaN 0.0080
+2048 256    0.0            SDA (recency B)    0.8927   0.0000    1.0147     0.8799       100.0    0.1201  0.1201 0.0094
+2048 256    0.0            SDA (uniform B)    0.8859   0.0000    1.0062     0.8804       100.0    0.1196  0.1196 0.0112
+2048 256    0.0                       Zero    1.0161   1.0412    1.0128     0.8799         0.0       NaN     NaN 0.0089
+2048 256    0.4 Expanded DeltaNet (eq-mem)    0.9208   0.8865    0.9252     0.8799       100.0       NaN     NaN 0.0096
+2048 256    0.4     Indexed KV (recency B)    0.8911   0.0000    1.0128     0.8799        96.0    0.1201  0.1201 0.0104
+2048 256    0.4     Indexed KV (uniform B)    0.8922   0.0000    1.0133     0.8804        96.0    0.1196  0.1196 0.0119
+2048 256    0.4          No-decay DeltaNet    1.0114   0.9754    1.0161     0.8799         4.0       NaN     NaN 0.0081
+2048 256    0.4            SDA (recency B)    0.8944   0.0035    1.0161     0.8799       100.0    0.1201  0.1201 0.0097
+2048 256    0.4            SDA (uniform B)    0.8884   0.0036    1.0086     0.8804       100.0    0.1196  0.1196 0.0112
+2048 256    0.4                       Zero    1.0161   1.0412    1.0128     0.8799         0.0       NaN     NaN 0.0089
+   N   B  noise                                        delta    mean   ci_lo   ci_hi
+ 512 128    0.0            SDA (uniform B) − SDA (recency B)  0.0297  0.0069  0.0525
+ 512 128    0.0 Expanded DeltaNet (eq-mem) − SDA (recency B) -0.0862 -0.1069 -0.0655
+ 512 128    0.0 Expanded DeltaNet (eq-mem) − SDA (uniform B) -0.1159 -0.1340 -0.0977
+ 512 128    0.0     Indexed KV (recency B) − SDA (recency B)  0.0295  0.0273  0.0318
+ 512 128    0.0          No-decay DeltaNet − SDA (recency B)  0.2500  0.2276  0.2723
+ 512 128    0.4            SDA (uniform B) − SDA (recency B)  0.0303  0.0076  0.0531
+ 512 128    0.4 Expanded DeltaNet (eq-mem) − SDA (recency B)  0.0949  0.0690  0.1207
+ 512 128    0.4 Expanded DeltaNet (eq-mem) − SDA (uniform B)  0.0645  0.0400  0.0890
+ 512 128    0.4     Indexed KV (recency B) − SDA (recency B)  0.0264  0.0243  0.0285
+ 512 128    0.4          No-decay DeltaNet − SDA (recency B)  0.2509  0.2284  0.2734
+ 512 256    0.0            SDA (uniform B) − SDA (recency B)  0.0269  0.0032  0.0507
+ 512 256    0.0 Expanded DeltaNet (eq-mem) − SDA (recency B) -0.0306 -0.0521 -0.0091
+ 512 256    0.0 Expanded DeltaNet (eq-mem) − SDA (uniform B) -0.0576 -0.0798 -0.0353
+ 512 256    0.0     Indexed KV (recency B) − SDA (recency B)  0.0154  0.0138  0.0171
+ 512 256    0.0          No-decay DeltaNet − SDA (recency B)  0.4849  0.4571  0.5128
+ 512 256    0.4            SDA (uniform B) − SDA (recency B)  0.0279  0.0042  0.0517
+ 512 256    0.4 Expanded DeltaNet (eq-mem) − SDA (recency B)  0.3186  0.2951  0.3421
+ 512 256    0.4 Expanded DeltaNet (eq-mem) − SDA (uniform B)  0.2907  0.2634  0.3180
+ 512 256    0.4     Indexed KV (recency B) − SDA (recency B)  0.0129  0.0111  0.0147
+ 512 256    0.4          No-decay DeltaNet − SDA (recency B)  0.4865  0.4588  0.5142
+2048 128    0.0            SDA (uniform B) − SDA (recency B) -0.0012 -0.0199  0.0175
+2048 128    0.0 Expanded DeltaNet (eq-mem) − SDA (recency B) -0.0752 -0.0895 -0.0608
+2048 128    0.0 Expanded DeltaNet (eq-mem) − SDA (uniform B) -0.0740 -0.0846 -0.0634
+2048 128    0.0     Indexed KV (recency B) − SDA (recency B)  0.0021 -0.0023  0.0064
+2048 128    0.0          No-decay DeltaNet − SDA (recency B)  0.0534  0.0395  0.0673
+2048 128    0.4            SDA (uniform B) − SDA (recency B) -0.0005 -0.0193  0.0183
+2048 128    0.4 Expanded DeltaNet (eq-mem) − SDA (recency B)  0.0048 -0.0099  0.0195
+2048 128    0.4 Expanded DeltaNet (eq-mem) − SDA (uniform B)  0.0053 -0.0051  0.0158
+2048 128    0.4     Indexed KV (recency B) − SDA (recency B)  0.0007 -0.0032  0.0047
+2048 128    0.4          No-decay DeltaNet − SDA (recency B)  0.0540  0.0399  0.0680
+2048 256    0.0            SDA (uniform B) − SDA (recency B) -0.0069 -0.0335  0.0198
+2048 256    0.0 Expanded DeltaNet (eq-mem) − SDA (recency B) -0.0807 -0.0955 -0.0660
+2048 256    0.0 Expanded DeltaNet (eq-mem) − SDA (uniform B) -0.0739 -0.0938 -0.0540
+2048 256    0.0     Indexed KV (recency B) − SDA (recency B) -0.0017 -0.0061  0.0027
+2048 256    0.0          No-decay DeltaNet − SDA (recency B)  0.1168  0.1023  0.1313
+2048 256    0.4            SDA (uniform B) − SDA (recency B) -0.0060 -0.0327  0.0208
+2048 256    0.4 Expanded DeltaNet (eq-mem) − SDA (recency B)  0.0264  0.0075  0.0452
+2048 256    0.4 Expanded DeltaNet (eq-mem) − SDA (uniform B)  0.0323  0.0118  0.0529
+2048 256    0.4     Indexed KV (recency B) − SDA (recency B) -0.0033 -0.0073  0.0007
+2048 256    0.4          No-decay DeltaNet − SDA (recency B)  0.1170  0.1024  0.1317

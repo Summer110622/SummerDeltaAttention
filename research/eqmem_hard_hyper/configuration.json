@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "HyperEqMem (spec P990 L3 b7 C4)": {
+      "P": 990,
+      "L": 3,
+      "b": 7,
+      "C": 4
+    },
+    "HyperEqMem (C16 P946, ablation)": {
+      "P": 946,
+      "L": 3,
+      "b": 7,
+      "C": 16
+    }
+  },
+  "calib": {
+    "HyperEqMem (spec P990 L3 b7 C4)": [
+      0.0,
+      0.85,
+      0.0
+    ],
+    "HyperEqMem (C16 P946, ablation)": [
+      0.0,
+      0.85,
+      0.0
+    ]
+  },
+  "expanded_beta": 0.4,
+  "R_plus_1": 97
+}

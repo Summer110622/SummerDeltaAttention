@@ -5,6 +5,12 @@
 
 Summer Delta Attention v5-Gated (SDA-5) combines a **no-decay delta-rule fast-weight state** with a **bounded archive of original key/value pairs** and a **confidence-gated residual correction**. This repository is an educational research prototype, not a pretrained LLM or optimized linear-attention kernel.
 
+## 研究状況（2026-10-25）
+
+> 最新の結論は [RESEARCH_STATUS.md](RESEARCH_STATUS.md) と [M-L1 限界ドラフト](papers/SDA5_M-L1_limitations_JA.md) を参照。等メモリ比較では優劣が面依存（hard=SDA-Recency、iid/old-skew=Expanded DeltaNet）で、**等メモリ万能核は未達**。下記の SDA vs KDA 比較は不均等メモリ（約25倍）の旧結果であり主結果ではない。LM での有効性は主張しない。
+>
+> *Status (EN): results are face-dependent at equal memory; no universal kernel; the KDA comparison below is an unequal-memory legacy result; no LM claims.*
+
 ## Algorithm
 
 For normalized keys `k` and queries `q`, with `F` of shape `(d_key, d_value)`:
@@ -33,7 +39,7 @@ Python >=3.10 and NumPy >=1.24 are required. The [reference module](summer_delta
 
 The following PNG plots are included in this repository under [`assets/readme/`](assets/readme/). They are derived from the **16-seed synthetic benchmark**, not language-model training. Reproduce the figures using `research/summary_results.csv` and `research/figures.py`.
 
-### Main comparison: SDA vs KDA
+### Legacy unequal-memory: SDA vs KDA proxy
 
 <p align="center">
   <img src="assets/readme/fig_main_comparison.png" alt="Main comparison chart between SDA and KDA across methods and memory settings" width="900" />
@@ -67,7 +73,25 @@ The following PNG plots are included in this repository under [`assets/readme/`]
 
 The included 5-page bilingual PDF papers contain the academic figures and full study; the Markdown versions give GitHub-readable equations, protocol, key measurements, and citations.
 
-## Synthetic recall results (not a language-model benchmark)
+## Status and limitations / 現状と限界
+
+Equal-memory synthetic recall only — **not** a language-model benchmark. Claims are bound to the surfaces below. Do not extrapolate hard-surface wins to a universal kernel.
+
+| Surface | Best (σ=0, equal-memory) | Representative MSE | Evidence |
+| --- | --- | ---: | --- |
+| hard (rewrite+distractor, n=2048, B=1024) | **SDA-Recency** | **0.575 ± 0.020** (388 KiB) | [`eqmem_hard_v2`](research/eqmem_hard_v2/) |
+| i.i.d. uniform-past | **Expanded DeltaNet** | e.g. 512/128 → **0.594** | [`hybrid_rf`](research/hybrid_rf/) |
+| old-skew (π=0) | **Expanded DeltaNet** | e.g. 512/128 → **0.645** (Recency **0.946**) | [`recency_adverse_v2`](research/recency_adverse_v2/) |
+
+**Equal-memory universal kernel: empirically not achieved.** Spec Hyper-EqMem (C=4), Hybrid-RF (allocation A), and Cond2 are all **No-go** ([`eqmem_hard_hyper`](research/eqmem_hard_hyper/), [`hybrid_rf`](research/hybrid_rf/), [`hybrid_switch`](research/hybrid_switch/)).
+
+hard Recency wins depend on that suite's generation (rewrites late in the sequence) and **do not hold under old-skew**. Spec H′ is **C=4 No-go**; a post-hoc C=16 ablation is **not adopted** (chosen after seeing test results; no holdout).
+
+等メモリ合成想起に限定。面別の最良は上表のとおりで、単一アーカイブ核の全面最良はない。**等メモリ万能核は実証失敗**。正本: [`papers/SDA5_M-L1_limitations_JA.md`](papers/SDA5_M-L1_limitations_JA.md)。下の不等メモリ表（校正SDA vs 未学習KDA代理）は歴史的結果であり、主主張の「勝ち」には使わない。
+
+## Legacy unequal-memory table (not the main result)
+
+> **Not the main claim.** Prefer [研究状況](#研究状況2026-10-25) / [Status and limitations](#status-and-limitations--現状と限界) and [`RESEARCH_STATUS.md`](RESEARCH_STATUS.md). The table below is a **historical unequal-memory** run (~25× KiB gap vs the KDA proxy). Current equal-memory SOTA is face-dependent (hard=SDA-Recency, iid/old-skew=Expanded).
 
 | Method | Value MSE (n=512, exact-key queries) | State + stored KV (KiB) |
 | --- | ---: | ---: |
@@ -95,7 +119,7 @@ The script writes `configuration.json`, `raw_results.csv`, `summary_results.csv`
 - **The headline gap is mostly archive size.** Indexed-KV error is about `1 − hit rate`. The fast delta state improves misses by only ~5% and is barely better than the zero predictor (0.930 vs 0.979 MSE). Paired difference of SDA over indexed KV: **+0.0241 [0.0217, 0.0265]** at n=512, but **+0.0019 [−0.0011, 0.0050]** at n=2048 (indistinguishable from zero).
 - **Hard gate vs soft attention.** With the full archive (ρ=1; 196 KiB for SDA vs 192 KiB for full KV) and query noise σ=1, SDA reaches 0.665 MSE (n=512) while plain softmax attention reaches 0.0415; the gate accepts only 29.6% of queries although the correct key is retrieved 97.5% of the time. The threshold was calibrated on σ∈{0, 0.4} at 50% retention only. On a *partial* archive (ρ=0.5, σ=0) softmax over the retained KV is much worse (0.743) than gated retrieval.
 - **Task bias.** Queries are uniform over all past keys with i.i.d. random keys/values: no recency, overwrites, distractors or anisotropic keys. Calibration of the "KDA proxy" therefore selects almost no forgetting, and the proxy (time-invariant per-channel decay) is not Kimi Delta Attention.
-- **Capacity.** d_k=32 holds ~32 associations but 512–2048 are written; no equal-memory baseline with a larger state or a recency/eviction-policy KV cache is included.
+- **Capacity.** d_k=32 holds ~32 associations but 512–2048 are written. Equal-memory **Recency KV** (MSE 0.651 on hard) and **SDA-Recency** are now included in `research/eqmem_hard_v2/`; the older sentence claiming no recency/eviction baseline is obsolete.
 
 ## Errata / changes in 0.1.1
 

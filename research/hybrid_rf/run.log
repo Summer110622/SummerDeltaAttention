@@ -1,0 +1,137 @@
+done hard 2048 1024 {'R_exp': 97, 'exp_beta': 0.4, 'R_hyb': 48, 'P_hyb': 490, 'hyb_kib': 387.75, 'exp_kib': 388.0, 'hyb_beta': 0.2, 'hyb_tau': 0.9} 3.6
+done iid 512 128 {'R_exp': 13, 'exp_beta': 0.4, 'R_hyb': 6, 'P_hyb': 70, 'hyb_kib': 51.75, 'exp_kib': 52.0, 'hyb_beta': 0.2, 'hyb_tau': 0.75} 0.6
+done iid 512 256 {'R_exp': 25, 'exp_beta': 0.7, 'R_hyb': 12, 'P_hyb': 130, 'hyb_kib': 99.75, 'exp_kib': 100.0, 'hyb_beta': 0.4, 'hyb_tau': 0.7} 0.6
+done iid 2048 128 {'R_exp': 13, 'exp_beta': 0.2, 'R_hyb': 6, 'P_hyb': 70, 'hyb_kib': 51.75, 'exp_kib': 52.0, 'hyb_beta': 0.1, 'hyb_tau': 0.7} 2.1
+done iid 2048 256 {'R_exp': 25, 'exp_beta': 0.2, 'R_hyb': 12, 'P_hyb': 130, 'hyb_kib': 99.75, 'exp_kib': 100.0, 'hyb_beta': 0.1, 'hyb_tau': 0.7} 2.1
+done old 512 128 {'R_exp': 13, 'exp_beta': 0.4, 'R_hyb': 6, 'P_hyb': 70, 'hyb_kib': 51.75, 'exp_kib': 52.0, 'hyb_beta': 0.2, 'hyb_tau': 0.75} 0.6
+done old 512 256 {'R_exp': 25, 'exp_beta': 0.4, 'R_hyb': 12, 'P_hyb': 130, 'hyb_kib': 99.75, 'exp_kib': 100.0, 'hyb_beta': 0.4, 'hyb_tau': 0.75} 0.6
+done old 2048 128 {'R_exp': 13, 'exp_beta': 0.2, 'R_hyb': 6, 'P_hyb': 70, 'hyb_kib': 51.75, 'exp_kib': 52.0, 'hyb_beta': 0.1, 'hyb_tau': 0.7} 2.0
+done old 2048 256 {'R_exp': 25, 'exp_beta': 0.2, 'R_hyb': 12, 'P_hyb': 130, 'hyb_kib': 99.75, 'exp_kib': 100.0, 'hyb_beta': 0.1, 'hyb_tau': 0.75} 2.1
+suite    N    B  noise                     method    mse  mse_inPool  mse_outPool  frac_inPool  hyb_accept  rewrite_hit  stable_hit
+ hard 2048 1024    0.0 Expanded DeltaNet (eq-mem) 0.6858      0.6306       0.7179       0.3638      0.6011       0.0000      0.0000
+ hard 2048 1024    0.0                  Hybrid-RF 0.7409      0.0000       1.1655       0.3638      0.6011       0.5459      0.1816
+ hard 2048 1024    0.0    Hybrid-RF (switch abl.) 0.7986      0.0000       1.2563       0.3638      0.6011       0.5459      0.1816
+ hard 2048 1024    0.0                SDA-Recency 0.5750      0.0000       0.9055       0.3638      0.6011       0.8750      0.4873
+ hard 2048 1024    0.4 Expanded DeltaNet (eq-mem) 0.9153      0.8851       0.9339       0.3638      0.3857       0.0000      0.0000
+ hard 2048 1024    0.4                  Hybrid-RF 0.6737      0.1134       0.9960       0.3638      0.3857       0.0049      0.0020
+ hard 2048 1024    0.4    Hybrid-RF (switch abl.) 0.6575      0.0600       1.0011       0.3638      0.3857       0.5146      0.1699
+ hard 2048 1024    0.4                SDA-Recency 0.5847      0.0168       0.9116       0.3638      0.3857       0.0049      0.0029
+  iid  512  128    0.0 Expanded DeltaNet (eq-mem) 0.5940      0.4339       0.6235       0.1553      0.1553          NaN         NaN
+  iid  512  128    0.0                  Hybrid-RF 0.6542      0.0000       0.7745       0.1553      0.1553          NaN         NaN
+  iid  512  128    0.0    Hybrid-RF (switch abl.) 0.6542      0.0000       0.7745       0.1553      0.1553          NaN         NaN
+  iid  512  128    0.0                SDA-Recency 0.6802      0.0000       0.8052       0.1553      0.1553          NaN         NaN
+  iid  512  128    0.4 Expanded DeltaNet (eq-mem) 0.7782      0.6353       0.8029       0.1553      0.1553          NaN         NaN
+  iid  512  128    0.4                  Hybrid-RF 0.7330      0.0438       0.8590       0.1553      0.1553          NaN         NaN
+  iid  512  128    0.4    Hybrid-RF (switch abl.) 0.7259      0.0000       0.8590       0.1553      0.1553          NaN         NaN
+  iid  512  128    0.4                SDA-Recency 0.6833      0.0027       0.8084       0.1553      0.1553          NaN         NaN
+  iid  512  256    0.0 Expanded DeltaNet (eq-mem) 0.4146      0.2072       0.4949       0.2793      0.2793          NaN         NaN
+  iid  512  256    0.0                  Hybrid-RF 0.4628      0.0000       0.6426       0.2793      0.2793          NaN         NaN
+  iid  512  256    0.0    Hybrid-RF (switch abl.) 0.4628      0.0000       0.6426       0.2793      0.2793          NaN         NaN
+  iid  512  256    0.0                SDA-Recency 0.4452      0.0000       0.6179       0.2793      0.2793          NaN         NaN
+  iid  512  256    0.4 Expanded DeltaNet (eq-mem) 0.7664      0.6054       0.8288       0.2793      0.2793          NaN         NaN
+  iid  512  256    0.4                  Hybrid-RF 0.6207      0.1177       0.8161       0.2793      0.2793          NaN         NaN
+  iid  512  256    0.4    Hybrid-RF (switch abl.) 0.5876      0.0000       0.8161       0.2793      0.2793          NaN         NaN
+  iid  512  256    0.4                SDA-Recency 0.4477      0.0027       0.6203       0.2793      0.2793          NaN         NaN
+  iid 2048  128    0.0 Expanded DeltaNet (eq-mem) 0.8810      0.7578       0.8848       0.0298      0.0298          NaN         NaN
+  iid 2048  128    0.0                  Hybrid-RF 0.9139      0.0000       0.9419       0.0298      0.0298          NaN         NaN
+  iid 2048  128    0.0    Hybrid-RF (switch abl.) 0.9139      0.0000       0.9419       0.0298      0.0298          NaN         NaN
+  iid 2048  128    0.0                SDA-Recency 0.9561      0.0000       0.9853       0.0298      0.0298          NaN         NaN
+  iid 2048  128    0.4 Expanded DeltaNet (eq-mem) 0.9622      0.9155       0.9632       0.0298      0.0298          NaN         NaN
+  iid 2048  128    0.4                  Hybrid-RF 0.9517      0.0344       0.9799       0.0298      0.0298          NaN         NaN
+  iid 2048  128    0.4    Hybrid-RF (switch abl.) 0.9508      0.0000       0.9799       0.0298      0.0298          NaN         NaN
+  iid 2048  128    0.4                SDA-Recency 0.9574      0.0039       0.9866       0.0298      0.0298          NaN         NaN
+  iid 2048  256    0.0 Expanded DeltaNet (eq-mem) 0.8120      0.7498       0.8157       0.0552      0.0552          NaN         NaN
+  iid 2048  256    0.0                  Hybrid-RF 0.8516      0.0000       0.9015       0.0552      0.0552          NaN         NaN
+  iid 2048  256    0.0    Hybrid-RF (switch abl.) 0.8516      0.0000       0.9015       0.0552      0.0552          NaN         NaN
+  iid 2048  256    0.0                SDA-Recency 0.8927      0.0000       0.9450       0.0552      0.0552          NaN         NaN
+  iid 2048  256    0.4 Expanded DeltaNet (eq-mem) 0.9208      0.8939       0.9222       0.0552      0.0552          NaN         NaN
+  iid 2048  256    0.4                  Hybrid-RF 0.9047      0.0231       0.9563       0.0552      0.0552          NaN         NaN
+  iid 2048  256    0.4    Hybrid-RF (switch abl.) 0.9035      0.0000       0.9563       0.0552      0.0552          NaN         NaN
+  iid 2048  256    0.4                SDA-Recency 0.8944      0.0036       0.9466       0.0552      0.0552          NaN         NaN
+  old  512  128    0.0 Expanded DeltaNet (eq-mem) 0.6452         NaN       0.6452       0.0000      0.0000          NaN         NaN
+  old  512  128    0.0                  Hybrid-RF 0.7891         NaN       0.7891       0.0000      0.0000          NaN         NaN
+  old  512  128    0.0    Hybrid-RF (switch abl.) 0.7891         NaN       0.7891       0.0000      0.0000          NaN         NaN
+  old  512  128    0.0                SDA-Recency 0.9463         NaN       0.9463       0.0000      0.0000          NaN         NaN
+  old  512  128    0.4 Expanded DeltaNet (eq-mem) 0.8133         NaN       0.8133       0.0000      0.0000          NaN         NaN
+  old  512  128    0.4                  Hybrid-RF 0.8688         NaN       0.8688       0.0000      0.0000          NaN         NaN
+  old  512  128    0.4    Hybrid-RF (switch abl.) 0.8688         NaN       0.8688       0.0000      0.0000          NaN         NaN
+  old  512  128    0.4                SDA-Recency 0.9501         NaN       0.9501       0.0000      0.0000          NaN         NaN
+  old  512  256    0.0 Expanded DeltaNet (eq-mem) 0.5665         NaN       0.5665       0.0000      0.0000          NaN         NaN
+  old  512  256    0.0                  Hybrid-RF 0.6932         NaN       0.6932       0.0000      0.0000          NaN         NaN
+  old  512  256    0.0    Hybrid-RF (switch abl.) 0.6932         NaN       0.6932       0.0000      0.0000          NaN         NaN
+  old  512  256    0.0                SDA-Recency 0.9485         NaN       0.9485       0.0000      0.0000          NaN         NaN
+  old  512  256    0.4 Expanded DeltaNet (eq-mem) 0.7703         NaN       0.7703       0.0000      0.0000          NaN         NaN
+  old  512  256    0.4                  Hybrid-RF 0.8578         NaN       0.8578       0.0000      0.0000          NaN         NaN
+  old  512  256    0.4    Hybrid-RF (switch abl.) 0.8578         NaN       0.8578       0.0000      0.0000          NaN         NaN
+  old  512  256    0.4                SDA-Recency 0.9530         NaN       0.9530       0.0000      0.0000          NaN         NaN
+  old 2048  128    0.0 Expanded DeltaNet (eq-mem) 0.8720         NaN       0.8720       0.0000      0.0000          NaN         NaN
+  old 2048  128    0.0                  Hybrid-RF 0.9275         NaN       0.9275       0.0000      0.0000          NaN         NaN
+  old 2048  128    0.0    Hybrid-RF (switch abl.) 0.9275         NaN       0.9275       0.0000      0.0000          NaN         NaN
+  old 2048  128    0.0                SDA-Recency 0.9908         NaN       0.9908       0.0000      0.0000          NaN         NaN
+  old 2048  128    0.4 Expanded DeltaNet (eq-mem) 0.9511         NaN       0.9511       0.0000      0.0000          NaN         NaN
+  old 2048  128    0.4                  Hybrid-RF 0.9625         NaN       0.9625       0.0000      0.0000          NaN         NaN
+  old 2048  128    0.4    Hybrid-RF (switch abl.) 0.9625         NaN       0.9625       0.0000      0.0000          NaN         NaN
+  old 2048  128    0.4                SDA-Recency 0.9925         NaN       0.9925       0.0000      0.0000          NaN         NaN
+  old 2048  256    0.0 Expanded DeltaNet (eq-mem) 0.8131         NaN       0.8131       0.0000      0.0000          NaN         NaN
+  old 2048  256    0.0                  Hybrid-RF 0.8921         NaN       0.8921       0.0000      0.0000          NaN         NaN
+  old 2048  256    0.0    Hybrid-RF (switch abl.) 0.8921         NaN       0.8921       0.0000      0.0000          NaN         NaN
+  old 2048  256    0.0                SDA-Recency 1.0009         NaN       1.0009       0.0000      0.0000          NaN         NaN
+  old 2048  256    0.4 Expanded DeltaNet (eq-mem) 0.9169         NaN       0.9169       0.0000      0.0000          NaN         NaN
+  old 2048  256    0.4                  Hybrid-RF 0.9439         NaN       0.9439       0.0000      0.0000          NaN         NaN
+  old 2048  256    0.4    Hybrid-RF (switch abl.) 0.9439         NaN       0.9439       0.0000      0.0000          NaN         NaN
+  old 2048  256    0.4                SDA-Recency 1.0004         NaN       1.0004       0.0000      0.0000          NaN         NaN
+suite    N    B  noise                               delta    mean   ci_lo   ci_hi
+ hard 2048 1024    0.0 Expanded DeltaNet (eq-mem) − Hybrid -0.0551 -0.0883 -0.0220
+ hard 2048 1024    0.0                SDA-Recency − Hybrid -0.1658 -0.2236 -0.1081
+ hard 2048 1024    0.0    Hybrid-RF (switch abl.) − Hybrid  0.0578  0.0481  0.0674
+ hard 2048 1024    0.4 Expanded DeltaNet (eq-mem) − Hybrid  0.2416  0.2138  0.2694
+ hard 2048 1024    0.4                SDA-Recency − Hybrid -0.0890 -0.1280 -0.0500
+ hard 2048 1024    0.4    Hybrid-RF (switch abl.) − Hybrid -0.0162 -0.0186 -0.0138
+  iid  512  128    0.0 Expanded DeltaNet (eq-mem) − Hybrid -0.0603 -0.0768 -0.0437
+  iid  512  128    0.0                SDA-Recency − Hybrid  0.0259  0.0130  0.0388
+  iid  512  128    0.0    Hybrid-RF (switch abl.) − Hybrid  0.0000  0.0000  0.0000
+  iid  512  128    0.4 Expanded DeltaNet (eq-mem) − Hybrid  0.0452  0.0251  0.0653
+  iid  512  128    0.4                SDA-Recency − Hybrid -0.0497 -0.0638 -0.0355
+  iid  512  128    0.4    Hybrid-RF (switch abl.) − Hybrid -0.0071 -0.0091 -0.0051
+  iid  512  256    0.0 Expanded DeltaNet (eq-mem) − Hybrid -0.0482 -0.0610 -0.0355
+  iid  512  256    0.0                SDA-Recency − Hybrid -0.0176 -0.0331 -0.0022
+  iid  512  256    0.0    Hybrid-RF (switch abl.) − Hybrid  0.0000  0.0000  0.0000
+  iid  512  256    0.4 Expanded DeltaNet (eq-mem) − Hybrid  0.1456  0.1216  0.1696
+  iid  512  256    0.4                SDA-Recency − Hybrid -0.1730 -0.1881 -0.1579
+  iid  512  256    0.4    Hybrid-RF (switch abl.) − Hybrid -0.0331 -0.0378 -0.0285
+  iid 2048  128    0.0 Expanded DeltaNet (eq-mem) − Hybrid -0.0329 -0.0432 -0.0227
+  iid 2048  128    0.0                SDA-Recency − Hybrid  0.0423  0.0327  0.0518
+  iid 2048  128    0.0    Hybrid-RF (switch abl.) − Hybrid  0.0000  0.0000  0.0000
+  iid 2048  128    0.4 Expanded DeltaNet (eq-mem) − Hybrid  0.0106 -0.0002  0.0213
+  iid 2048  128    0.4                SDA-Recency − Hybrid  0.0058 -0.0044  0.0159
+  iid 2048  128    0.4    Hybrid-RF (switch abl.) − Hybrid -0.0009 -0.0013 -0.0006
+  iid 2048  256    0.0 Expanded DeltaNet (eq-mem) − Hybrid -0.0396 -0.0516 -0.0276
+  iid 2048  256    0.0                SDA-Recency − Hybrid  0.0411  0.0339  0.0483
+  iid 2048  256    0.0    Hybrid-RF (switch abl.) − Hybrid  0.0000  0.0000  0.0000
+  iid 2048  256    0.4 Expanded DeltaNet (eq-mem) − Hybrid  0.0161 -0.0009  0.0330
+  iid 2048  256    0.4                SDA-Recency − Hybrid -0.0103 -0.0171 -0.0036
+  iid 2048  256    0.4    Hybrid-RF (switch abl.) − Hybrid -0.0013 -0.0018 -0.0007
+  old  512  128    0.0 Expanded DeltaNet (eq-mem) − Hybrid -0.1439 -0.1559 -0.1320
+  old  512  128    0.0                SDA-Recency − Hybrid  0.1572  0.1516  0.1627
+  old  512  128    0.0    Hybrid-RF (switch abl.) − Hybrid  0.0000  0.0000  0.0000
+  old  512  128    0.4 Expanded DeltaNet (eq-mem) − Hybrid -0.0554 -0.0706 -0.0402
+  old  512  128    0.4                SDA-Recency − Hybrid  0.0814  0.0740  0.0887
+  old  512  128    0.4    Hybrid-RF (switch abl.) − Hybrid  0.0000  0.0000  0.0000
+  old  512  256    0.0 Expanded DeltaNet (eq-mem) − Hybrid -0.1266 -0.1366 -0.1167
+  old  512  256    0.0                SDA-Recency − Hybrid  0.2553  0.2415  0.2691
+  old  512  256    0.0    Hybrid-RF (switch abl.) − Hybrid  0.0000  0.0000  0.0000
+  old  512  256    0.4 Expanded DeltaNet (eq-mem) − Hybrid -0.0875 -0.1073 -0.0677
+  old  512  256    0.4                SDA-Recency − Hybrid  0.0953  0.0801  0.1104
+  old  512  256    0.4    Hybrid-RF (switch abl.) − Hybrid  0.0000  0.0000  0.0000
+  old 2048  128    0.0 Expanded DeltaNet (eq-mem) − Hybrid -0.0554 -0.0629 -0.0479
+  old 2048  128    0.0                SDA-Recency − Hybrid  0.0633  0.0577  0.0689
+  old 2048  128    0.0    Hybrid-RF (switch abl.) − Hybrid  0.0000  0.0000  0.0000
+  old 2048  128    0.4 Expanded DeltaNet (eq-mem) − Hybrid -0.0114 -0.0210 -0.0018
+  old 2048  128    0.4                SDA-Recency − Hybrid  0.0300  0.0255  0.0346
+  old 2048  128    0.4    Hybrid-RF (switch abl.) − Hybrid  0.0000  0.0000  0.0000
+  old 2048  256    0.0 Expanded DeltaNet (eq-mem) − Hybrid -0.0790 -0.0836 -0.0744
+  old 2048  256    0.0                SDA-Recency − Hybrid  0.1088  0.1032  0.1144
+  old 2048  256    0.0    Hybrid-RF (switch abl.) − Hybrid  0.0000  0.0000  0.0000
+  old 2048  256    0.4 Expanded DeltaNet (eq-mem) − Hybrid -0.0271 -0.0368 -0.0173
+  old 2048  256    0.4                SDA-Recency − Hybrid  0.0565  0.0517  0.0614
+  old 2048  256    0.4    Hybrid-RF (switch abl.) − Hybrid  0.0000  0.0000  0.0000
