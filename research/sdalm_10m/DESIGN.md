@@ -83,7 +83,7 @@ Bytes are `entries * dtype.itemsize` via `torch.empty((), dtype=dtype).element_s
 
 ## Archive ρ later
 
-The first ablation, not run here, is archive ρ ∈ {small, base, large} around the base ring of 32. This scaffold does not choose the small or large integers and does not add ρ as a learned knob or a third layout.
+The OFAT plan is [`ABLATION_RHO.md`](ABLATION_RHO.md). It is not a run. ρ ∈ {small ≈ 0.25, base = archive_cap 32, large ≈ 0.75 or the Core cap}. β stays 0.05, the gate stays soft in train and hard in eval, and the archive stays Recency-B. τ then β are touched only after ρ shows a main effect. The table stays empty until `gate_f16_dualwrite.py` exits 0.
 
 ## Parameter count
 

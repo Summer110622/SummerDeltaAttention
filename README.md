@@ -5,6 +5,29 @@
 
 Summer Delta Attention v5-Gated (SDA-5) combines a **no-decay delta-rule fast-weight state** with a **bounded archive of original key/value pairs** and a **confidence-gated residual correction**. This repository is an educational research prototype, not a pretrained LLM or optimized linear-attention kernel.
 
+## Face-wise synthetic results (front claim)
+
+Equal-memory synthetic recall at σ=0. Not a language-model result. A hard-face win is not an overall best: the winner changes with the face. Sources: [`papers/SDA5_M-L1_limitations_JA.md`](papers/SDA5_M-L1_limitations_JA.md), [`BEST_RESULTS.md`](BEST_RESULTS.md).
+
+| Face | Best | Representative result | Evidence |
+|---|---|---|---|
+| hard (rewrite + distractor, n=2048) | **SDA-Recency** | MSE **0.575 ± 0.020** (next: Recency KV 0.651, Expanded 0.686) | `research/eqmem_hard_v2/` |
+| iid (uniform past) | **Expanded DeltaNet** | 512/128: Expanded 0.594 / SDA-Recency 0.680; 512/256: Expanded 0.415 | `research/hybrid_rf/` |
+| old-skew | **Expanded DeltaNet** | 512/128: Expanded 0.645 / SDA-Recency 0.946 | `research/recency_adverse_v2/` |
+
+Non-claims, carried over from the limitations note:
+
+- No universal equal-memory kernel. H′, Hybrid-RF, and Cond2 are No-go. H (reading the hard face as the global winner) is not eligible as the main kernel.
+- No language-model efficacy and no trained-layer efficacy.
+- Do not use 「有望な中間」, 「全面勝ち」, 「万能SOTA」, or 「KDAに勝った」 as claims about this work.
+- The figures and the table **below** are an older unequal-memory proxy study (about 100 KiB vs 4 KiB). They are not the front claim and they are not a win over Kimi Linear or KDA.
+
+## Related linear attention (citations only)
+
+- **DeltaNet** — delta-rule fast weights (Schlag, Irie, Schmidhuber, ICML 2021) and the parallel sequence algorithm (Yang, Wang, Zhang, Shen, Kim, NeurIPS 2024, arXiv:2406.06484).
+- **Gated DeltaNet** — Yang, Kautz, Hatamizadeh, ICLR 2025, arXiv:2412.06464.
+- **Kimi Linear / KDA** — Kimi Team, 2025, arXiv:2510.26692. This repository does not depend on that kernel. The 4 KiB channel-decay proxy later on this page is not Kimi Linear.
+
 ## Algorithm
 
 For normalized keys `k` and queries `q`, with `F` of shape `(d_key, d_value)`:
@@ -33,7 +56,9 @@ Python >=3.10 and NumPy >=1.24 are required. The [reference module](summer_delta
 
 The following PNG plots are included in this repository under [`assets/readme/`](assets/readme/). They are derived from the **16-seed synthetic benchmark**, not language-model training. Reproduce the figures using `research/summary_results.csv` and `research/figures.py`.
 
-### Main comparison: SDA vs KDA
+The plots below belong to the **demoted unequal-memory proxy study**, not to the face-wise table above.
+
+### Historical proxy figure: SDA vs a 4 KiB channel-decay stand-in
 
 <p align="center">
   <img src="assets/readme/fig_main_comparison.png" alt="Main comparison chart between SDA and KDA across methods and memory settings" width="900" />
@@ -67,7 +92,9 @@ The following PNG plots are included in this repository under [`assets/readme/`]
 
 The included 5-page bilingual PDF papers contain the academic figures and full study; the Markdown versions give GitHub-readable equations, protocol, key measurements, and citations.
 
-## Synthetic recall results (not a language-model benchmark)
+## Historical unequal-memory proxy table (demoted, not a win)
+
+This table is the early exact-key study. SDA's archive is about 25× the proxy's state. It is not evidence that SDA beat Kimi Linear, KDA, or full attention, and it is not the front claim. The front claim is the face-wise table near the top of this file.
 
 | Method | Value MSE (n=512, exact-key queries) | State + stored KV (KiB) |
 | --- | ---: | ---: |

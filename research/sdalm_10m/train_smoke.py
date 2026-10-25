@@ -8,6 +8,10 @@ against Expanded.
 Exit status is 0 when the frozen shape's parameter count is inside 1e7 ± 20%,
 the delta scan matches a sequential reference, gradients are finite, and
 acceptance is reported only for the recency block.
+
+AdamW steps only the SDA knobs (``beta_logit``, ``tau_logit``, ``gate_log_temp``).
+Embeddings, QKV, FFN, and other projections keep ``requires_grad`` so their
+gradients can be checked, and they are not in the optimizer.
 """
 from __future__ import annotations
 
@@ -45,6 +49,28 @@ DEFAULT_RECENCY_PARAMS = 8_817_992
 DEFAULT_EXPANDED_PARAMS = 8_817_944
 PARAM_LO = 8_000_000
 PARAM_HI = 12_000_000
+SDA_KNOB_NAMES = ("beta_logit", "tau_logit", "gate_log_temp")
+
+
+def _is_sda_knob(name: str) -> bool:
+    return name.rsplit(".", 1)[-1] in SDA_KNOB_NAMES
+
+
+def _sda_knob_parameters(model: torch.nn.Module) -> list[torch.nn.Parameter]:
+    knobs = [param for name, param in model.named_parameters() if _is_sda_knob(name)]
+    if not knobs:
+        raise AssertionError("AdamW group is empty: no SDA knobs")
+    return knobs
+
+
+def _assert_knob_only_optimizer(model: torch.nn.Module, optimizer: torch.optim.Optimizer) -> None:
+    grouped = {id(param) for group in optimizer.param_groups for param in group["params"]}
+    for name, param in model.named_parameters():
+        in_group = id(param) in grouped
+        if _is_sda_knob(name) and not in_group:
+            raise AssertionError(f"SDA knob missing from AdamW: {name}")
+        if not _is_sda_knob(name) and in_group:
+            raise AssertionError(f"non-knob parameter is in AdamW: {name}")
 
 
 def _assert_finite_grads(model: torch.nn.Module, *, require_nonzero: tuple[str, ...] = ()) -> None:
@@ -205,10 +231,23 @@ def run(variant: str, steps: int, seed: int) -> None:
     if inputs.shape[1] <= cfg.archive_cap:
         raise AssertionError("smoke sequence should be longer than archive_cap so the ring evicts")
 
-    optimizer = torch.optim.AdamW(primary.parameters(), lr=3e-4, weight_decay=0.0)
+    knob_params = _sda_knob_parameters(primary)
+    optimizer = torch.optim.AdamW(knob_params, lr=3e-4, weight_decay=0.0)
+    _assert_knob_only_optimizer(primary, optimizer)
+    print("adamw_group=sda_knobs_only")
+    frozen = {
+        name: param.detach().clone()
+        for name, param in primary.named_parameters()
+        if not _is_sda_knob(name)
+    }
+    knobs_before = {
+        name: param.detach().clone()
+        for name, param in primary.named_parameters()
+        if _is_sda_knob(name)
+    }
     losses: list[float] = []
     for step in range(steps):
-        optimizer.zero_grad(set_to_none=True)
+        primary.zero_grad(set_to_none=True)
         logits = primary(inputs)
         loss = torch.nn.functional.cross_entropy(
             logits.reshape(-1, logits.size(-1)), targets.reshape(-1),
@@ -221,6 +260,16 @@ def run(variant: str, steps: int, seed: int) -> None:
         value = float(loss.detach())
         losses.append(value)
         print(f"step={step} loss={value:.6f}")
+    for name, before in frozen.items():
+        current = dict(primary.named_parameters())[name]
+        if not torch.equal(current, before):
+            raise AssertionError(f"AdamW stepped a non-knob parameter: {name}")
+    if not any(
+        not torch.equal(param, knobs_before[name])
+        for name, param in primary.named_parameters()
+        if _is_sda_knob(name)
+    ):
+        raise AssertionError("AdamW did not change any SDA knob")
     print("loss_trajectory=" + ",".join(f"{value:.6f}" for value in losses))
     print("grads_finite=true")
     _hard_gate_is_finite(primary if variant == "recency" else recency_model, inputs)

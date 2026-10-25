@@ -4,7 +4,7 @@ Causal language-model stack at the frozen shape **d_model=256, 6 layers, 4 heads
 
 This directory is a scaffold plus a smoke train. It does not show that a trained layer works.
 
-Design notes: [DESIGN.md](DESIGN.md). Frozen face-wise table: [`BEST_RESULTS.md`](../../BEST_RESULTS.md).
+Design notes: [DESIGN.md](DESIGN.md). ρ plan (not run): [ABLATION_RHO.md](ABLATION_RHO.md). A3 protocol (canonical): [EVAL_PROTOCOL_JA.md](EVAL_PROTOCOL_JA.md). Frozen face-wise table: [`BEST_RESULTS.md`](../../BEST_RESULTS.md).
 
 ## Run
 
@@ -21,7 +21,9 @@ python research/sdalm_10m/train_smoke.py
 
 `model.py` prints the parameter count for recency and for `variant=expanded`, plus per-step state bytes at the parameter dtype (item size, not a fixed 8).
 
-`train_smoke.py` uses seed 0, CPU, and four AdamW steps on one fixed synthetic MQAR batch. It checks the frozen parameter count, that the vectorized delta scan matches a sequential reference, that gradients are finite, and that acceptance is defined only on the recency block. The loss lines are that smoke. They are not an evaluation.
+`train_smoke.py` uses seed 0, CPU, and four AdamW steps on one fixed synthetic MQAR batch. AdamW updates only `beta_logit`, `tau_logit`, and `gate_log_temp`. Other parameters keep gradients for the finite-grad check and are not in the optimizer. The script also checks the frozen parameter count, that the vectorized delta scan matches a sequential reference, and that acceptance is defined only on the recency block. The loss lines are that smoke. They are not an evaluation.
+
+`python research/sdalm_10m/gate_f16_dualwrite.py` compares a float64 reference with a float16 dual-write on synthetic KV from CALIB seeds 20250001–20250008 only. Exit 0 is PASS. It does not read LM batches from 20300001 onward. The ρ table is not a run; it waits on that gate.
 
 ```bash
 python research/sdalm_10m/train_smoke.py --variant expanded
