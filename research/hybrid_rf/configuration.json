@@ -1,0 +1,96 @@
+{
+ "sda_beta": 0.05,
+ "sda_tau": 0.75,
+ "cells": {
+  "hard_N2048_B1024": {
+   "R_exp": 97,
+   "exp_beta": 0.4,
+   "R_hyb": 48,
+   "P_hyb": 490,
+   "hyb_kib": 387.75,
+   "exp_kib": 388.0,
+   "hyb_beta": 0.2,
+   "hyb_tau": 0.9
+  },
+  "iid_N512_B128": {
+   "R_exp": 13,
+   "exp_beta": 0.4,
+   "R_hyb": 6,
+   "P_hyb": 70,
+   "hyb_kib": 51.75,
+   "exp_kib": 52.0,
+   "hyb_beta": 0.2,
+   "hyb_tau": 0.75
+  },
+  "iid_N512_B256": {
+   "R_exp": 25,
+   "exp_beta": 0.7,
+   "R_hyb": 12,
+   "P_hyb": 130,
+   "hyb_kib": 99.75,
+   "exp_kib": 100.0,
+   "hyb_beta": 0.4,
+   "hyb_tau": 0.7
+  },
+  "iid_N2048_B128": {
+   "R_exp": 13,
+   "exp_beta": 0.2,
+   "R_hyb": 6,
+   "P_hyb": 70,
+   "hyb_kib": 51.75,
+   "exp_kib": 52.0,
+   "hyb_beta": 0.1,
+   "hyb_tau": 0.7
+  },
+  "iid_N2048_B256": {
+   "R_exp": 25,
+   "exp_beta": 0.2,
+   "R_hyb": 12,
+   "P_hyb": 130,
+   "hyb_kib": 99.75,
+   "exp_kib": 100.0,
+   "hyb_beta": 0.1,
+   "hyb_tau": 0.7
+  },
+  "old_N512_B128": {
+   "R_exp": 13,
+   "exp_beta": 0.4,
+   "R_hyb": 6,
+   "P_hyb": 70,
+   "hyb_kib": 51.75,
+   "exp_kib": 52.0,
+   "hyb_beta": 0.2,
+   "hyb_tau": 0.75
+  },
+  "old_N512_B256": {
+   "R_exp": 25,
+   "exp_beta": 0.4,
+   "R_hyb": 12,
+   "P_hyb": 130,
+   "hyb_kib": 99.75,
+   "exp_kib": 100.0,
+   "hyb_beta": 0.4,
+   "hyb_tau": 0.75
+  },
+  "old_N2048_B128": {
+   "R_exp": 13,
+   "exp_beta": 0.2,
+   "R_hyb": 6,
+   "P_hyb": 70,
+   "hyb_kib": 51.75,
+   "exp_kib": 52.0,
+   "hyb_beta": 0.1,
+   "hyb_tau": 0.7
+  },
+  "old_N2048_B256": {
+   "R_exp": 25,
+   "exp_beta": 0.2,
+   "R_hyb": 12,
+   "P_hyb": 130,
+   "hyb_kib": 99.75,
+   "exp_kib": 100.0,
+   "hyb_beta": 0.1,
+   "hyb_tau": 0.75
+  }
+ }
+}
