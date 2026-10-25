@@ -5,10 +5,13 @@ gate, and knobs-only AdamW stay at the A3 settings in ``a3_cpu_smoke.py`` and
 ``EVAL_PROTOCOL_JA.md``. The step count is fixed. Nothing early-stops.
 
 ``DESIGN.md`` and the protocol name a horizon ``C`` and do not assign it an
-integer. This exploratory round sets ``C = 32`` so the three budgets stay
-distinct: small ``round(0.25 * C) = 8``, base = the Core point 32 (not
-``round(0.5 * C)``), large ``round(0.75 * C) = 24``. 24 does not exceed the
-Core cap, so the clip in ``ABLATION_RHO.md`` does not bind.
+integer. This round sets ``C = 128`` for the large cell only:
+``round(0.75 * C) = 96``. Base stays the Core point ``archive_cap = 32``
+and is not ``round(0.5 * C)``. Small stays the explicit low cell 8.
+``round(0.25 * 128) = 32`` would collide with that Core point, so small is
+not ``0.25 * C`` (that product is 8 only when ``C = 32``, which is not the
+horizon used here). The caps are monotonic: 8 < 32 < 96. Large is not
+clipped down to the Core cap.
 
 Seeds are the CALIB band only, split into four disjoint train/eval pairs.
 TEST, HOLDOUT, and the LM/MQAR band ``20300001–`` are not read.
@@ -60,9 +63,12 @@ N_QUERIES = 4
 LR = 3e-4
 SDA_KNOB_NAMES = ("beta_logit", "tau_logit", "gate_log_temp")
 RECENCY_PARAMS = 8_817_992
-# Protocol names C and does not number it. 32 keeps the three rings distinct.
-C_HORIZON = 32
+# Protocol names C and does not number it. 128 is the large-cell horizon only:
+# round(0.75 * 128) = 96. Small is the explicit low cell 8, not round(0.25 * C)
+# (that product is 32 and collides with the Core cap). Base stays 32.
+C_HORIZON = 128
 CORE_ARCHIVE_CAP = 32
+SMALL_ARCHIVE_CAP = 8
 BETA_INIT = 0.05
 TAU_INIT = 0.75
 LOG_DIR = Path(__file__).resolve().parent / "logs"
@@ -91,38 +97,66 @@ CE_DEFINITION = (
 )
 
 
-def _caps() -> dict[str, dict[str, int | float | bool | str]]:
-    small = round(0.25 * C_HORIZON)
-    large_raw = round(0.75 * C_HORIZON)
-    large = min(large_raw, CORE_ARCHIVE_CAP)
+def _caps() -> dict[str, dict[str, int | float | bool | str | None]]:
+    """Explicit caps 8 / 32 / 96. ``C`` sizes only the large cell.
+
+    ``round(0.25 * C)`` at this horizon equals the Core cap, so the small
+    cell does not use that formula. Large is ``round(0.75 * C)`` and is not
+    clipped to the Core cap: a clip would put large at or below base.
+    """
+    quarter = round(0.25 * C_HORIZON)
+    large = round(0.75 * C_HORIZON)
+    small = SMALL_ARCHIVE_CAP
+    if C_HORIZON != 128 or quarter != CORE_ARCHIVE_CAP:
+        raise AssertionError(
+            "C=128 is what makes round(0.25*C) collide with the core cap; "
+            "small is the explicit cell 8 for that reason"
+        )
+    if small == quarter:
+        raise AssertionError("small used round(0.25*C) and collided with the core cap")
+    if small != 8 or large != 96 or CORE_ARCHIVE_CAP != 32:
+        raise AssertionError(f"caps left 8 / 32 / 96, got {small}, {CORE_ARCHIVE_CAP}, {large}")
+    if not (small < CORE_ARCHIVE_CAP < large):
+        raise AssertionError("archive_cap is not strictly increasing small < base < large")
+    if large < 64:
+        raise AssertionError("large must be at least 64 and must exceed the core cap")
     cells = {
         "small": {
             "cell": "small",
-            "rho": small / C_HORIZON,
+            "rho": None,
             "archive_cap": small,
             "clipped_to_core": False,
-            "role": "round(0.25 * C)",
+            "fraction_of_C": False,
+            "role": (
+                "explicit low cell 8; not round(0.25 * C). "
+                "round(0.25 * 128) = 32 collides with the core cap. "
+                "round(0.25 * C) = 8 only when C = 32, which is not this horizon"
+            ),
         },
         "base": {
             "cell": "base",
             "rho": None,
             "archive_cap": CORE_ARCHIVE_CAP,
             "clipped_to_core": False,
-            "role": "core budget point, not round(0.5 * C)",
+            "fraction_of_C": False,
+            "role": "core budget point 32, not round(0.5 * C)",
         },
         "large": {
             "cell": "large",
             "rho": large / C_HORIZON,
             "archive_cap": large,
-            "clipped_to_core": large != large_raw,
-            "role": "round(0.75 * C), clipped to the core cap only if that product exceeds it",
+            "clipped_to_core": False,
+            "fraction_of_C": True,
+            "role": "round(0.75 * C) with C = 128; exceeds the core cap; not clipped to it",
         },
     }
     budgets = [int(cells[name]["archive_cap"]) for name in ("small", "base", "large")]
-    if len(set(budgets)) != 3:
-        raise AssertionError(f"rho grid collapsed to {budgets}; C={C_HORIZON} does not separate the cells")
-    if any(cap < 1 for cap in budgets):
-        raise AssertionError("archive_cap must be positive")
+    if budgets != [8, 32, 96]:
+        raise AssertionError(f"rho grid left {{8, 32, 96}}: {budgets}")
+    if any(bool(cells[name]["clipped_to_core"]) for name in ("small", "base", "large")):
+        raise AssertionError("a cell was clipped to the core cap")
+    if cells["large"]["rho"] != 0.75:
+        raise AssertionError("large rho left 0.75")
     if cells["base"]["archive_cap"] != 32:
         raise AssertionError("base cell left the core archive_cap of 32")
     return cells
@@ -451,8 +485,17 @@ def run() -> dict:
             raise AssertionError("train and eval batches differ in length")
         if time > 128:
             raise AssertionError("MQAR sequence exceeds max_seq_len")
-        if time <= max(int(cells[name]["archive_cap"]) for name in order):
-            raise AssertionError("sequence is not longer than every archive_cap, so the ring does not evict")
+        small_cap = int(cells["small"]["archive_cap"])
+        base_cap = int(cells["base"]["archive_cap"])
+        large_cap = int(cells["large"]["archive_cap"])
+        if not (time > small_cap and time > base_cap):
+            raise AssertionError(
+                "sequence is not longer than the small and base caps, so those rings do not evict"
+            )
+        if large_cap <= time:
+            raise AssertionError(
+                "large cap does not exceed this MQAR length; the memo's no-eviction note would be stale"
+            )
         models = {name: _build(int(cells[name]["archive_cap"]), train_seed) for name in order}
         _assert_same_init(models)
         befores = {name: _snapshot(model) for name, model in models.items()}
@@ -467,7 +510,10 @@ def run() -> dict:
                 "role": spec["role"],
                 "archive_cap": spec["archive_cap"],
                 "clipped_to_core": spec["clipped_to_core"],
+                "fraction_of_C": spec["fraction_of_C"],
+                "ring_evicts": time > int(spec["archive_cap"]),
                 "C": C_HORIZON,
+                "C_applies_to": "large",
                 "train_seed": train_seed,
                 "eval_seed": eval_seed,
                 "train_ce": train_ce,
@@ -495,6 +541,9 @@ def run() -> dict:
         caps = {row["archive_cap"] for row in group}
         if caps != {cells[name]["archive_cap"]}:
             raise AssertionError(f"{name} archive_cap changed during the run")
+        evicts = {row["ring_evicts"] for row in group}
+        if len(evicts) != 1:
+            raise AssertionError(f"{name} eviction flag changed across seeds")
         eval_ce = [row["eval_ce"] for row in group]
         summaries.append({
             "cell": name,
@@ -502,6 +551,8 @@ def run() -> dict:
             "role": cells[name]["role"],
             "archive_cap": cells[name]["archive_cap"],
             "clipped_to_core": cells[name]["clipped_to_core"],
+            "fraction_of_C": cells[name]["fraction_of_C"],
+            "ring_evicts": group[0]["ring_evicts"],
             "n_pairs": len(group),
             "next_token_ce": _mean(eval_ce),
             "next_token_ce_sd": _sample_sd(eval_ce),
@@ -519,8 +570,15 @@ def run() -> dict:
             "per_seed_mse": [row["mse"] for row in group],
         })
     kibs = [row["kib"] for row in summaries]
-    if not (kibs[0] < kibs[2] < kibs[1]):
-        raise AssertionError("KiB did not follow archive_cap small < large < base")
+    summary_caps = [int(row["archive_cap"]) for row in summaries]
+    if summary_caps != [8, 32, 96]:
+        raise AssertionError(f"summary caps left 8 < 32 < 96: {summary_caps}")
+    if not (kibs[0] < kibs[1] < kibs[2]):
+        raise AssertionError("KiB did not follow archive_cap small < base < large")
+    if [bool(row["ring_evicts"]) for row in summaries] != [True, True, False]:
+        raise AssertionError("eviction left the length-47 pattern: small and base evict, large does not")
+    if any(row["seq_len"] != 47 for row in runs):
+        raise AssertionError("MQAR length left 47; the large-cap eviction note would be stale")
     ce_values = [row["next_token_ce"] for row in summaries]
     summary = {
         "result": "ofat_ok",
@@ -533,13 +591,31 @@ def run() -> dict:
         "torch_num_threads": 1,
         "C": C_HORIZON,
         "C_defined_by_protocol": False,
+        "C_applies_to": "large",
         "C_note": (
             "DESIGN.md and EVAL_PROTOCOL_JA.md do not assign an integer to C. "
-            "This round uses 32 so round(0.25*C), the core cap 32, and round(0.75*C) "
-            "are three different rings."
+            "This round sets C = 128 for the large cell only: archive_cap = round(0.75 * 128) = 96. "
+            "Base stays the Core point 32 and is not round(0.5 * C). "
+            "Small stays the explicit low cell 8. round(0.25 * 128) = 32 would collide with that "
+            "Core point, so small is not 0.25 * C. round(0.25 * C) = 8 only at C = 32, which is not "
+            "the horizon used for large. An earlier grid used C = 32 and large = 24, which is narrower "
+            "than the Core cap, so the factor was not monotonic. The caps here are 8 < 32 < 96."
         ),
         "core_archive_cap": CORE_ARCHIVE_CAP,
+        "small_archive_cap": SMALL_ARCHIVE_CAP,
+        "large_archive_cap": round(0.75 * C_HORIZON),
+        "archive_caps": [8, 32, 96],
+        "monotonic_archive_cap": True,
+        "small_is_round_quarter_C": False,
         "base_is_half_C": False,
+        "large_formula": "round(0.75 * C)",
+        "large_clipped_to_core": False,
+        "seq_len": runs[0]["seq_len"],
+        "eviction_note": (
+            "MQAR length is 47. Caps 8 and 32 are shorter than that prefix, so those rings evict. "
+            "Cap 96 is wider than the prefix, so the large ring keeps every past position. "
+            "KiB still follows the nominal archive_cap."
+        ),
         "shape": {"vocab": 8000, "d_model": 256, "n_layer": 6, "n_head": 4, "d_ff": 1024},
         "variant": "recency",
         "archive_policy": "scaffold ring of the last archive_cap positions (continuous keys; not a second Recency-B implementation)",
@@ -596,6 +672,18 @@ def _write(payload: dict) -> None:
         raise AssertionError("summary claims a sealed band was opened")
     if [row["cell"] for row in summary["cells"]] != ["small", "base", "large"]:
         raise AssertionError("summary cells left small, base, large order")
+    if [row["archive_cap"] for row in summary["cells"]] != [8, 32, 96]:
+        raise AssertionError("logged caps are not the monotonic grid 8, 32, 96")
+    if summary["C"] != 128 or summary["C_applies_to"] != "large":
+        raise AssertionError("logged C is not the large-only horizon 128")
+    if summary["small_is_round_quarter_C"] or summary["base_is_half_C"] or summary["large_clipped_to_core"]:
+        raise AssertionError("a cap was recorded as a colliding fraction of C")
+    if summary["monotonic_archive_cap"] is not True:
+        raise AssertionError("log does not mark the caps monotonic")
+    if summary["not_lm_efficacy"] is not True or summary["not_comprehensive_win"] is not True:
+        raise AssertionError("non-claims were dropped")
+    if summary["claim"] != "calib_ofat_only":
+        raise AssertionError("claim left calib_ofat_only")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -615,8 +703,14 @@ def main(argv: list[str] | None = None) -> None:
         + " seeds_eval=" + ",".join(str(seed) for seed in summary["eval_seeds"])
     )
     print("gate=PASS adamw_group=sda_knobs_only variant=sda_recency")
+    print("archive_cap=8,32,96 monotonic=true C_applies_to=large small=fixed-8")
     for row in summary["cells"]:
-        rho = "core" if row["rho"] is None else f"{row['rho']:.2f}"
+        if row["cell"] == "large":
+            rho = f"{float(row['rho']):.2f}"
+        elif row["cell"] == "base":
+            rho = "core"
+        else:
+            rho = "fixed-8"
         print(
             f"cell={row['cell']} rho={rho} archive_cap={row['archive_cap']} "
             f"ce={row['next_token_ce']:.6f} ppl={row['ppl']:.4f} "

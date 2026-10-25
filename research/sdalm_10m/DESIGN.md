@@ -83,7 +83,7 @@ Bytes are `entries * dtype.itemsize` via `torch.empty((), dtype=dtype).element_s
 
 ## Archive ρ later
 
-The OFAT record is [`ABLATION_RHO.md`](ABLATION_RHO.md). The first grid varies only `archive_cap`, with C = 32 chosen in that memo because this file does not number C. The three rings are 8, the Core point 32, and 24. β stays 0.05 at init, the gate stays soft in train and hard in eval, and the archive stays the scaffold ring. τ then β are touched only after ρ shows a main effect on next-token CE. The f16 gate PASS is recorded in `logs/gate_f16_dualwrite_calib.json`. The CALIB means live in that memo and in `logs/ablation_rho_calib.json`. They are not an LM result.
+The OFAT record is [`ABLATION_RHO.md`](ABLATION_RHO.md). The grid varies only `archive_cap`. The caps are the explicit low cell 8, the Core point 32, and `round(0.75 * 128) = 96`, in that order. C = 128 is the horizon for that large formula only. Small is not `round(0.25 * 128)` (that product equals the Core cap). Base is not half of C. β stays 0.05 at init, the gate stays soft in train and hard in eval, and the archive stays the scaffold ring. τ then β are touched only after ρ shows a main effect on next-token CE. The f16 gate PASS is recorded in `logs/gate_f16_dualwrite_calib.json`. The CALIB means live in that memo and in `logs/ablation_rho_calib.json`. They are not an LM result.
 
 ## Parameter count
 
