@@ -134,6 +134,9 @@ class SDARCLM(nn.Module):
         self.norm = RMSNorm(cfg.d_model)
         self.head = nn.Linear(cfg.d_model, cfg.vocab_size, bias=False)
         self.head.weight = self.emb.weight
+        nn.init.normal_(self.emb.weight, std=0.02)  # tied head: N(0,1) gives huge logits
+        if self.pos is not None:
+            nn.init.normal_(self.pos.weight, std=0.02)
 
     def forward(self, idx: torch.Tensor, archive_seed: int | None = None):
         B, T = idx.shape

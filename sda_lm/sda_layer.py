@@ -117,6 +117,7 @@ class SummerDeltaAttentionLayer(nn.Module):
         o = torch.stack(outs, dim=2)                             # (B,H,T,dv)
         if add is not None:
             o = o + add
-        o = o.transpose(1, 2).reshape(B, T, self.h * self.dv)
-        o = self.norm(o.transpose(1, 2)).transpose(1, 2)
+        # Per-timestep, per-head norm (GroupNorm on (B*T, C) so no stats cross time).
+        o = self.norm(o.transpose(1, 2).reshape(B * T, self.h * self.dv))
+        o = o.view(B, T, self.h * self.dv)
         return self.out(o)

@@ -68,7 +68,7 @@ class TestSDALM(unittest.TestCase):
             S = S + 0.5 * torch.outer(k[t], v[t] - k[t] @ S)
             sc = k[:t + 1] @ q[t]; j = int(sc.argmax())
             o = q[t] @ S
-            if sc[j] >= float(L.tau):
+            if sc[j] >= float(L.tau.detach()):
                 o = o + v[j] - k[j] @ S
             ref.append(o)
         ref = torch.stack(ref)
@@ -76,7 +76,7 @@ class TestSDALM(unittest.TestCase):
         captured = {}
         L.norm.register_forward_hook(lambda mod, inp, out: captured.setdefault("x", inp[0]))
         L(x)
-        torch.testing.assert_close(captured["x"][0].T, ref)
+        torch.testing.assert_close(captured["x"].detach(), ref)
 
 
 if __name__ == "__main__":
