@@ -90,6 +90,30 @@ OPENBLAS_NUM_THREADS=1 python research/figures.py
 
 The script writes `configuration.json`, `raw_results.csv`, `summary_results.csv` and `paired_results.csv` (per-seed paired differences with 95% Student-t intervals) next to itself; all four are committed so the numbers can be audited. `tests/test_artifacts.py` fails if the committed CSV, `figures.py` and the README headline numbers drift apart, and `tests/test_reference.py` checks that the packaged class agrees with the benchmark's SDA implementation.
 
+## SDA+ (experimental, opt-in)
+
+`SummerDeltaAttentionPlus` (`summer_delta_attention/plus.py`) is an additive variant; `SummerDeltaAttention` is unchanged. It keeps the same delta state and reservoir archive and adds four switchable pieces: an int8/int4 quantized archive (more retained KV per byte), a k-means clustered read (scan only `probe` clusters), a soft sigmoid confidence gate, and a top-m softmax correction.
+
+```python
+from summer_delta_attention import SummerDeltaAttentionPlus as Plus
+cap = Plus.capacity_for_budget(272 * 1024, 64, 64, bits=4, dtype="float32")
+sda_plus = Plus(64, 64, capacity=cap, bits=4, dtype="float32")
+```
+
+Equal-memory synthetic recall, top-1 retrieval of the written value from a noisy key (N=16384, query noise σ=0.3, 2 seeds × 128 queries; `OPENBLAS_NUM_THREADS=1 python research/plus_equal_memory.py`, ~20 s on CPU):
+
+| Byte budget | SDA original (float32) | SDA+ int8 | SDA+ int4 | SDA+ int4, no state, no gate |
+|---|---:|---:|---:|---:|
+| 272 KiB | 0.043 | 0.109 | 0.246 | 0.238 |
+| 2064 KiB | 0.223 | 0.922 | 1.000 | 1.000 |
+
+How to read this (please do not over-claim):
+
+- **The gain is archive capacity.** Recall tracks the fraction of the N pairs that fit in the budget (512 → 1848 → 3434 archived pairs at 272 KiB). The last column, a plain quantized clustered KV archive with no delta state and no gate, matches the full variant, so the benchmark gives **no evidence that the delta state, the soft gate or top-m help**.
+- At 2064 KiB / int4 all N=16384 pairs are archived, so that cell is an upper bound set by the task, not a property of the gate.
+- Synthetic i.i.d.-style recall only (64 topic clusters, no recency, overwrites or distractors); not a language-model benchmark. Byte counts are payload (packed bits + fp16 scales) plus the cluster index; the NumPy reference stores int4 codes in int8 arrays, and no trained KDA/Kimi Linear is involved.
+- Reads rebuild the k-means index lazily after writes, so write-heavy interleaved workloads pay that cost; no latency claim is made.
+
 ## How to read the results (added after adversarial review)
 
 - **The headline gap is mostly archive size.** Indexed-KV error is about `1 − hit rate`. The fast delta state improves misses by only ~5% and is barely better than the zero predictor (0.930 vs 0.979 MSE). Paired difference of SDA over indexed KV: **+0.0241 [0.0217, 0.0265]** at n=512, but **+0.0019 [−0.0011, 0.0050]** at n=2048 (indistinguishable from zero).
