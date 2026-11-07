@@ -29,6 +29,47 @@ python -m unittest discover -s tests -v
 
 Python >=3.10 and NumPy >=1.24 are required. The [reference module](summer_delta_attention/reference.py) exposes `SummerDeltaAttention`, `kda_proxy_state` and `full_kv_attention`.
 
+## Batched reads / 読み取りのバッチ化
+
+For many independent queries against the same state, replace the Python loop
+with `SummerDeltaAttention.read_batch`:
+
+```python
+# queries: (n_queries, key_dim); write the stream before calling this.
+outputs = sda.read_batch(queries, batch_size=256, archive_block_size=4096)
+outputs, info = sda.read_batch(queries, details=True)
+# outputs and info["fast"]: (n_queries, value_dim)
+# info["similarity"] and info["accepted"]: (n_queries,)
+```
+
+This path normalizes queries in batches and uses matrix products for archive
+search and state readout. It scans the full archive in tiles, with a score
+workspace bounded by `batch_size * archive_block_size` elements (4 MiB at the
+defaults in float32). Input/output arrays, diagnostics and other temporaries
+are additional. The recurrence, reservoir, overwrite rules and correction
+equation are unchanged. Near-ties and gate-boundary decisions use the original
+scalar read path; other outputs may differ by floating-point roundoff.
+
+On one Ryzen 5 3600 CPU with one OpenBLAS thread, a 256-query float32 benchmark
+observed **12.35×** speedup at 512 archived pairs and **5.57×** at 4,096 pairs.
+These are medians of per-seed speedups over three seeds, not universal latency
+guarantees. Setup/writes are excluded. See [conditions and seed-level evidence](docs/benchmarks/batched-reads.md).
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 python -m research.benchmark_reads
+python -m unittest discover -s tests -v
+```
+
+Use `read()` for single-query/online write-read workloads. Batching across
+intervening writes would change the meaning of those reads. The API is for
+`SummerDeltaAttention`; `SummerDeltaAttentionPlus` does not expose it.
+No new library dependencies are required. Tie-heavy inputs and thresholds near
+typical similarities can reduce the benefit by triggering scalar fallbacks.
+
+同じ状態に対する複数クエリをまとめて処理するAPIです。検索の近似化は行わず、
+クエリ側・アーカイブ側の両方を分割して一時メモリを制限します。
+速度の数値は特定CPU・合成入力での測定で、書き込み時間は含みません。
+
 ## Experiment figures
 
 The following PNG plots are included in this repository under [`assets/readme/`](assets/readme/). They are derived from the **16-seed synthetic benchmark**, not language-model training. Reproduce the figures using `research/summary_results.csv` and `research/figures.py`.

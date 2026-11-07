@@ -129,6 +129,91 @@ class SummerDeltaAttention:
                          "accepted": accepted, "archive_size": self._size}
         return out
 
+    def read_batch(self, queries: np.ndarray, *, batch_size: int = 256,
+                   archive_block_size: int = 4096, details: bool = False):
+        """Read independent queries against the current state using matrix products.
+
+        ``queries`` has shape ``(n_queries, key_dim)``; the result has shape
+        ``(n_queries, value_dim)``. With ``details=True``, diagnostics contain
+        arrays ``fast``, ``similarity`` and ``accepted``, plus scalar
+        ``archive_size``. An empty query matrix is supported.
+
+        Both query and archive axes are tiled: the score workspace is at most
+        ``batch_size * archive_block_size`` scalars. Every archive entry is
+        searched; this is not approximate retrieval. Numerically ambiguous
+        gates/nearest-key ties fall back to :meth:`read`. Other results can
+        differ by floating-point roundoff from repeated scalar reads.
+
+        Writes must not be interleaved with this call. For online write/read
+        workloads, continue using :meth:`read` after each write.
+        """
+        for name, size in (("batch_size", batch_size),
+                           ("archive_block_size", archive_block_size)):
+            if (isinstance(size, (bool, np.bool_)) or
+                    not isinstance(size, (int, np.integer)) or size <= 0):
+                raise ValueError(f"{name} must be a positive integer")
+        queries = np.asarray(queries, dtype=self.dtype)
+        if queries.ndim != 2 or queries.shape[1] != self.key_dim:
+            raise ValueError(f"Expected query matrix shape (n, {self.key_dim})")
+        n = len(queries)
+        out = np.empty((n, self.value_dim), dtype=self.dtype)
+        if details:
+            info = {"fast": np.empty_like(out),
+                    "similarity": np.full(n, np.nan, dtype=self.dtype),
+                    "accepted": np.zeros(n, dtype=bool),
+                    "archive_size": self._size}
+        # A conservative roundoff band for unit-vector dot products. Decisions
+        # in this band use the original scalar path, including its normalization.
+        tolerance = 8 * self.key_dim * np.finfo(self.dtype).eps
+        for start in range(0, n, batch_size):
+            stop = min(start + batch_size, n)
+            x = queries[start:stop]
+            if not np.isfinite(x).all():
+                raise ValueError("Vector must be finite")
+            peak = np.max(np.abs(x), axis=1, keepdims=True)
+            if (peak == 0).any():
+                raise ValueError("Vector must have nonzero norm")
+            q = x / peak
+            q /= np.linalg.norm(q, axis=1, keepdims=True)
+            fast = q @ self.state
+            result = out[start:stop]
+            result[:] = fast
+            rows = np.arange(stop - start)
+            best = np.full(len(rows), -np.inf, dtype=self.dtype)
+            second = np.full_like(best, -np.inf)
+            indices = np.zeros(len(rows), dtype=np.intp)
+            for offset in range(0, self._size, archive_block_size):
+                keys = self._keys[offset:min(offset + archive_block_size, self._size)]
+                scores = q @ keys.T
+                local_index = np.argmax(scores, axis=1)
+                local_best = scores[rows, local_index].copy()
+                scores[rows, local_index] = -np.inf
+                local_second = np.max(scores, axis=1)
+                second = np.maximum(np.maximum(second, local_second),
+                                    np.minimum(best, local_best))
+                better = local_best > best  # first archive slot wins exact ties
+                indices[better] = offset + local_index[better]
+                best = np.maximum(best, local_best)
+                del scores  # release this tile before allocating the next one
+            if self._size:
+                accepted = best >= self.threshold
+                selected = indices[accepted]
+                result[accepted] += (self._values[selected] -
+                                     self._keys[selected] @ self.state)
+                ambiguous = ((best - second <= tolerance) |
+                             (np.abs(best - self.threshold) <= tolerance))
+                for row in np.flatnonzero(ambiguous):
+                    result[row], scalar = self.read(x[row], details=True)
+                    fast[row] = scalar["fast"]
+                    best[row] = scalar["similarity"]
+                    accepted[row] = scalar["accepted"]
+                if details:
+                    info["similarity"][start:stop] = best
+                    info["accepted"][start:stop] = accepted
+            if details:
+                info["fast"][start:stop] = fast
+        return (out, info) if details else out
+
     @property
     def archive_size(self) -> int:
         return self._size

@@ -19,7 +19,7 @@ def main():
     ids = rng.integers(n, size=64)
     query = keys[ids]
     targets = values[ids]
-    sda_predictions = np.stack([sda.read(q) for q in query])
+    sda_predictions = sda.read_batch(query)
     kda_predictions = query @ kda_state
     full_predictions = np.stack([full_kv_attention(q, keys, values) for q in query])
     mse = lambda pred: float(np.mean((pred - targets) ** 2))
