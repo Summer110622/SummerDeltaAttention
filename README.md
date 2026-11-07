@@ -77,6 +77,38 @@ every archived key. Accepted matches and gate-boundary decisions retain their
 numerical guards. The default is `False`: hit-heavy workloads can be slower.
 See the [paired benchmark and limitations](docs/benchmarks/confidence-pruning.md).
 
+## Experimental trainable SDA-SoftChunk
+
+An optional PyTorch research prototype is available as `summer_delta_attention.softchunk`:
+
+```bash
+python -m pip install -e '.[trainable]'
+```
+
+`delta_state_chunked` computes the same no-decay delta recurrence with chunkwise
+unit-triangular solves; `SoftChunkMixer` adds a bounded, Algorithm-R KV reservoir,
+a learned temperature, and a learned soft confidence gate. Discrete reservoir
+selection and any supplied padding/validity masks do not receive surrogate
+gradients. The API is an experimental, noncausal read-after-write encoder
+primitive, not a pretrained model or production kernel:
+
+```python
+from summer_delta_attention.softchunk import SoftChunkMixer
+
+mix = SoftChunkMixer(width=128, capacity=64, chunk_size=64)
+output = mix(hidden_states, valid_mask=valid_tokens)  # (batch, time, width)
+```
+
+The recurrence/state equation, soft archive correction, gradients, padding
+behavior, and research-only benchmark limitations are documented in
+[`docs/benchmarks/softchunk-real-data-pilot.md`](docs/benchmarks/softchunk-real-data-pilot.md).
+Install the optional extra before running its tests; they skip cleanly when
+PyTorch is not installed:
+
+```bash
+python -m unittest tests.test_softchunk -v
+```
+
 同じ状態に対する複数クエリをまとめて処理するAPIです。検索の近似化は行わず、
 クエリ側・アーカイブ側の両方を分割して一時メモリを制限します。
 速度の数値は特定CPU・合成入力での測定で、書き込み時間は含みません。
