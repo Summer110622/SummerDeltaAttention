@@ -40,6 +40,9 @@ class BatchReadTests(unittest.TestCase):
                         archive_block_size=archive_block_size)
                     self.assertTrue(info["accepted"][:33].all())
                     self.assertTrue((~info["accepted"][33:]).any())
+                    self.assert_matches_scalar(memory, queries, batch_size=batch_size,
+                                               archive_block_size=archive_block_size,
+                                               prune_rejected=True)
 
     def test_empty_archive_with_and_without_fast_state(self):
         for capacity in (0, 8):
@@ -127,6 +130,45 @@ class BatchReadTests(unittest.TestCase):
                 with self.subTest(name=name, size=size), self.assertRaises(ValueError):
                     memory.read_batch(np.eye(3), **{name: size})
         self.assert_matches_scalar(memory, np.eye(3), batch_size=np.int64(2))
+        with self.assertRaises(ValueError):
+            memory.read_batch(np.eye(3), prune_rejected="yes")
+
+    def test_pruning_preserves_gate_and_cross_block_tie_guards(self):
+        for dtype in (np.float32, np.float64):
+            memory = SummerDeltaAttention(3, 1, capacity=4, dtype=dtype, threshold=0.7)
+            for key, value in zip(np.eye(3), ([3.], [7.], [-5.])):
+                memory.write(key, value)
+            # Accepted cross-block tie, rejected cross-block tie, exact match,
+            # and a query on the scalar gate boundary.
+            queries = np.array([[1., 1., 0.], [-1., -1., 0.],
+                                [0., 1., 0.], [0.7, 0., np.sqrt(1 - 0.7**2)]], dtype=dtype)
+            for threshold in (0.7, memory.read(queries[-1], details=True)[1]["similarity"]):
+                memory.threshold = threshold
+                for block in (1, 2, 10):
+                    old, old_info = memory.read_batch(
+                        queries, details=True, archive_block_size=block, prune_rejected=False)
+                    new, new_info = memory.read_batch(
+                        queries, details=True, archive_block_size=block, prune_rejected=True)
+                    np.testing.assert_allclose(new, old, atol=2e-6, rtol=2e-6)
+                    np.testing.assert_array_equal(new_info["accepted"], old_info["accepted"])
+                    np.testing.assert_allclose(new_info["similarity"], old_info["similarity"], atol=2e-6)
+                    self.assert_matches_scalar(memory, queries, archive_block_size=block,
+                                               prune_rejected=True)
+
+    def test_pruning_skips_only_irrelevant_scalar_fallbacks(self):
+        from unittest.mock import patch
+        memory = SummerDeltaAttention(3, 1, threshold=0.9)
+        memory.write([1., 0., 0.], [2.])
+        memory.write([0., 1., 0.], [4.])
+        with patch.object(memory, "read", wraps=memory.read) as scalar:
+            actual = memory.read_batch(np.array([[0., 0., 1.]]), archive_block_size=1,
+                                       prune_rejected=True)
+            scalar.assert_not_called()
+        np.testing.assert_allclose(actual[0], memory.read([0., 0., 1.]))
+        memory.threshold = 0.0
+        with patch.object(memory, "read", wraps=memory.read) as scalar:
+            memory.read_batch(np.array([[1., 1., 0.]]), archive_block_size=1, prune_rejected=True)
+            scalar.assert_called_once()
 
 
 if __name__ == "__main__":

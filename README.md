@@ -66,6 +66,17 @@ intervening writes would change the meaning of those reads. The API is for
 No new library dependencies are required. Tie-heavy inputs and thresholds near
 typical similarities can reduce the benefit by triggering scalar fallbacks.
 
+For rejection-heavy workloads, opt in to confidence pruning:
+
+```python
+outputs = sda.read_batch(queries, prune_rejected=True)
+```
+
+This skips runner-up checks for wholly rejected score tiles while still scanning
+every archived key. Accepted matches and gate-boundary decisions retain their
+numerical guards. The default is `False`: hit-heavy workloads can be slower.
+See the [paired benchmark and limitations](docs/benchmarks/confidence-pruning.md).
+
 同じ状態に対する複数クエリをまとめて処理するAPIです。検索の近似化は行わず、
 クエリ側・アーカイブ側の両方を分割して一時メモリを制限します。
 速度の数値は特定CPU・合成入力での測定で、書き込み時間は含みません。
