@@ -130,7 +130,8 @@ class SummerDeltaAttention:
         return out
 
     def read_batch(self, queries: np.ndarray, *, batch_size: int = 256,
-                   archive_block_size: int = 4096, details: bool = False):
+                   archive_block_size: int = 4096, details: bool = False,
+                   prune_rejected: bool = False):
         """Read independent queries against the current state using matrix products.
 
         ``queries`` has shape ``(n_queries, key_dim)``; the result has shape
@@ -144,6 +145,11 @@ class SummerDeltaAttention:
         gates/nearest-key ties fall back to :meth:`read`. Other results can
         differ by floating-point roundoff from repeated scalar reads.
 
+        ``prune_rejected=True`` skips runner-up checks for score tiles certainly below
+        the confidence gate. All archive entries are still searched; accepted
+        matches and gate-boundary decisions retain scalar numerical guards.
+        It is opt-in because gate checks add overhead to hit-heavy workloads.
+
         Writes must not be interleaved with this call. For online write/read
         workloads, continue using :meth:`read` after each write.
         """
@@ -152,6 +158,8 @@ class SummerDeltaAttention:
             if (isinstance(size, (bool, np.bool_)) or
                     not isinstance(size, (int, np.integer)) or size <= 0):
                 raise ValueError(f"{name} must be a positive integer")
+        if not isinstance(prune_rejected, (bool, np.bool_)):
+            raise ValueError("prune_rejected must be a boolean")
         queries = np.asarray(queries, dtype=self.dtype)
         if queries.ndim != 2 or queries.shape[1] != self.key_dim:
             raise ValueError(f"Expected query matrix shape (n, {self.key_dim})")
@@ -187,10 +195,13 @@ class SummerDeltaAttention:
                 scores = q @ keys.T
                 local_index = np.argmax(scores, axis=1)
                 local_best = scores[rows, local_index].copy()
-                scores[rows, local_index] = -np.inf
-                local_second = np.max(scores, axis=1)
-                second = np.maximum(np.maximum(second, local_second),
-                                    np.minimum(best, local_best))
+                # Skip only wholly rejected tiles, avoiding row gathers and
+                # extra score copies when any query may pass the gate.
+                if not prune_rejected or np.max(local_best) >= self.threshold - tolerance:
+                    scores[rows, local_index] = -np.inf
+                    local_second = np.max(scores, axis=1)
+                    second = np.maximum(np.maximum(second, local_second),
+                                        np.minimum(best, local_best))
                 better = local_best > best  # first archive slot wins exact ties
                 indices[better] = offset + local_index[better]
                 best = np.maximum(best, local_best)
@@ -198,10 +209,13 @@ class SummerDeltaAttention:
             if self._size:
                 accepted = best >= self.threshold
                 selected = indices[accepted]
-                result[accepted] += (self._values[selected] -
-                                     self._keys[selected] @ self.state)
+                if not prune_rejected or len(selected):
+                    result[accepted] += (self._values[selected] -
+                                         self._keys[selected] @ self.state)
                 ambiguous = ((best - second <= tolerance) |
                              (np.abs(best - self.threshold) <= tolerance))
+                if prune_rejected:
+                    ambiguous &= best >= self.threshold - tolerance
                 for row in np.flatnonzero(ambiguous):
                     result[row], scalar = self.read(x[row], details=True)
                     fast[row] = scalar["fast"]
